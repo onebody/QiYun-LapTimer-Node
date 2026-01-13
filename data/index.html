@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>骑云 竞速计时系统</title>
+    <link rel="icon" type="image/png" href="favicon.ico" />
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    <script src="jquery-3.7.1.min.js"></script>
+    <script src="articulate.min.js"></script>
+    <script src="smoothie.js"></script>
+  </head>
+
+  <body>
+    <header>
+      <nav>
+        <div class="logo">
+          <img id="logo-img" src="favicon.ico" alt="QiYun-FPV" width="64" />
+          <h1>骑云 竞速计时系统</h1>
+        </div>
+      </nav>
+      <ul class="nav-links">
+        <li><a id="nav-link-config" class="tablinks active" onclick="openTab(event, 'config')">配置</a></li>
+        <li><a id="nav-link-race" class="tablinks" onclick="openTab(event, 'race')">比赛</a></li>
+        <li><a id="nav-link-calib" class="tablinks" onclick="openTab(event, 'calib')">校准</a></li>
+        <li><a id="nav-link-ota" class="tablinks" onclick="openTab(event, 'ota')">更新</a></li>
+      </ul>
+    </header>
+
+    <main>
+      <div id="config" class="tabcontent">
+        <div class="config-container">
+          <div id="bandChannelFreq">
+            <div class="config-item">
+              <label for="bandSelect">频段:</label>
+              <select id="bandSelect">
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="E">E</option>
+                <option value="F">F</option>
+                <option value="R">R</option>
+                <option value="L">L</option>
+              </select>
+            </div>
+
+            <div class="config-item">
+              <label for="channelSelect">频道:</label>
+              <select id="channelSelect">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+              </select>
+            </div>
+
+            <div class="config-item">
+              <span id="freqOutput"></span>
+            </div>
+          </div>
+
+          <div class="config-item">
+            <label for="minLap">最小圈时:</label>
+            <div class="input-with-value">
+              <span class="val">10.0s</span>
+              <input type="range" id="minLap" step="0.5" min="1" max="10" value="10.0" oninput="updateMinLap(this,value)" />
+            </div>
+          </div>
+
+          <div class="config-item">
+            <label for="alarmThreshold">低电压告警:</label>
+            <div class="input-with-value">
+              <span class="val">3.6v</span>
+              <input type="range" id="alarmThreshold" step="0.1" min="2.6" max="3.6" value="3.0" oninput="updateAlarmThreshold(this,value)" />
+            </div>
+          </div>
+
+          <div class="config-item">
+            <label for="announcerSelect">播报类型:</label>
+            <select id="announcerSelect">
+              <option value="none">关闭</option>
+              <option value="beep">蜂鸣</option>
+              <option value="1lap">单圈用时</option>
+              <option value="2lap">两圈累计</option>
+              <option value="3lap">三圈累计</option>
+            </select>
+          </div>
+
+          <div class="config-item">
+            <label for="rate">播报速率:</label>
+            <div class="input-with-value">
+              <span class="val">1.0</span>
+              <input type="range" min="0.1" max="2" step="0.1" id="rate" value="1.0" oninput="updateAnnouncerRate(this,value)" />
+            </div>
+          </div>
+
+          <div class="config-item">
+            <label for="pname">飞手姓名:</label>
+            <input type="text" id="pname" maxlength="20" />
+          </div>
+
+          <div class="config-item">
+            <label for="ssid">WiFi 名称:</label>
+            <input type="text" id="ssid" maxlength="32" />
+          </div>
+
+          <div class="config-item">
+            <label for="pwd">WiFi 密码:</label>
+            <input type="password" id="pwd" maxlength="32" />
+          </div>
+        </div>
+        <button id="EnableAudioButton" onclick="enableAudioLoop()">开启语音</button>
+        <button id="DisableAudioButton" onclick="disableAudioLoop()">关闭语音</button>
+        <button id="GenerateAudioButton" onclick="generateAudio()">测试语音</button>
+        <br>
+        <button onclick="saveConfig()">保存配置</button>
+        <button onclick="saveAndRestartConfig()">保存并重启</button>
+      </div>
+
+      <div id="race" class="tabcontent">
+        <span id="timer">00:00:00 秒</span>
+        <div class="racebuttons">
+          <button id="startRaceButton" onclick="startRace()">开始比赛</button>
+          <button id="stopRaceButton" onclick="stopRace()" disabled>停止比赛</button>
+          <button id="clearLapsButton" onclick="clearLaps()">清空成绩</button>
+        </div>
+        <table id="lapTable">
+          <tr>
+            <th>圈号</th>
+            <th>圈时</th>
+            <th>两圈累计</th>
+            <th>三圈累计</th>
+          </tr>
+        </table>
+      </div>
+
+      <div id="calib" class="tabcontent">
+        <div>
+          <canvas id="rssiChart"></canvas>
+        </div>
+        <div class="config-item">
+          <label for="enter">进入 RSSI 阈值:</label>
+          <div class="input-with-value">
+            <span id="enterSpan" class="val">120</span>
+            <input type="range" min="50" max="255" step="1" id="enter" value="120" oninput="updateEnterRssi(this,value)" />
+          </div>
+        </div>
+        <div class="config-item">
+          <label for="exit">退出 RSSI 阈值:</label>
+          <div class="input-with-value">
+            <span id="exitSpan" class="val">100</span>
+            <input type="range" min="50" max="255" step="1" id="exit" value="100" oninput="updateExitRssi(this,value)" />
+          </div>
+        </div>
+        <button onclick="saveConfig()">保存 RSSI 阈值</button>
+
+        <hr />
+        <h3>自动校准向导</h3>
+        <div id="calibWizard">
+          <div id="calibStep1" class="calib-step">
+            <p>步骤 1/3: 测量环境底噪</p>
+            <p>请确保飞行器已通电，但远离计时门。</p>
+            <button onclick="startCalibNoise()">开始测量底噪</button>
+          </div>
+          <div id="calibStep2" class="calib-step" style="display: none;">
+            <p>步骤 1/3: 正在测量底噪...</p>
+            <p>请保持静止，等待几秒钟。</p>
+            <button onclick="stopCalibNoise()">完成测量</button>
+            <p>当前底噪峰值: <span id="calibNoiseVal">0</span></p>
+          </div>
+          <div id="calibStep3" class="calib-step" style="display: none;">
+            <p>步骤 2/3: 测量过门信号</p>
+            <p>请控制飞行器多次穿过计时门。</p>
+            <button onclick="startCalibCrossing()">开始测量过门</button>
+          </div>
+          <div id="calibStep4" class="calib-step" style="display: none;">
+            <p>步骤 2/3: 正在测量过门信号...</p>
+            <p>请多次穿过计时门，然后点击完成。</p>
+            <button onclick="stopCalibCrossing()">完成测量</button>
+            <p>当前信号峰值: <span id="calibPeakVal">0</span></p>
+          </div>
+          <div id="calibStep5" class="calib-step" style="display: none;">
+            <p>步骤 3/3: 结果确认</p>
+            <p>底噪: <span id="resNoise"></span>, 峰值: <span id="resPeak"></span></p>
+            <p>推荐配置: 进入=<span id="recEnter"></span>, 退出=<span id="recExit"></span></p>
+            <button onclick="applyCalib()">应用并保存</button>
+            <button onclick="resetCalib()">取消</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="ota" class="tabcontent">
+        <div class="firmware-update">
+            <iframe id="ota-iframe" src="" width="100%" height="600px" frameborder="0" sandbox="allow-same-origin allow-scripts allow-forms"></iframe>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <p>Powered by <a href="https://github.com/onebody/PhobosLT" target="_blank" rel="noopener noreferrer" style="color: white">QiYun-FPV</a></p>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>
