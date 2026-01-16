@@ -424,8 +424,9 @@ Battery Voltage:\t%0.1fv";
         // or just return peak and let frontend do math. 
         // Let's return peak and let frontend do math to be flexible.
         
-        char buf[64];
-        snprintf(buf, sizeof(buf), "{\"status\": \"OK\", \"maxPeak\": %u}", maxPeak);
+        char buf[128];
+        snprintf(buf, sizeof(buf), "{\"status\": \"OK\", \"maxPeak\": %u, \"droneSize\": %u, \"gateDiameter\": %u}", 
+                 maxPeak, conf->getDroneSize(), conf->getGateDiameter());
         AsyncWebServerResponse* res = request->beginResponse(200, "application/json", buf);
         res->addHeader("Access-Control-Allow-Origin", "*");
         request->send(res);

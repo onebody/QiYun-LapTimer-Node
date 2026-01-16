@@ -48,7 +48,7 @@ void Config::write(void) {
 
 void Config::toJson(AsyncResponseStream& destination) {
     // Use https://arduinojson.org/v6/assistant to estimate memory
-    DynamicJsonDocument config(256);
+    DynamicJsonDocument config(300);
     config["freq"] = conf.frequency;
     config["minLap"] = conf.minLap;
     config["alarm"] = conf.alarm;
@@ -56,6 +56,8 @@ void Config::toJson(AsyncResponseStream& destination) {
     config["anRate"] = conf.announcerRate;
     config["enterRssi"] = conf.enterRssi;
     config["exitRssi"] = conf.exitRssi;
+    config["droneSize"] = conf.droneSize;
+    config["gateDiameter"] = getGateDiameter();
     config["name"] = conf.pilotName;
     config["ssid"] = conf.ssid;
     config["pwd"] = conf.password;
@@ -63,7 +65,7 @@ void Config::toJson(AsyncResponseStream& destination) {
 }
 
 void Config::toJsonString(char* buf) {
-    DynamicJsonDocument config(256);
+    DynamicJsonDocument config(300);
     config["freq"] = conf.frequency;
     config["minLap"] = conf.minLap;
     config["alarm"] = conf.alarm;
@@ -71,10 +73,12 @@ void Config::toJsonString(char* buf) {
     config["anRate"] = conf.announcerRate;
     config["enterRssi"] = conf.enterRssi;
     config["exitRssi"] = conf.exitRssi;
+    config["droneSize"] = conf.droneSize;
+    config["gateDiameter"] = getGateDiameter();
     config["name"] = conf.pilotName;
     config["ssid"] = conf.ssid;
     config["pwd"] = conf.password;
-    serializeJsonPretty(config, buf, 256);
+    serializeJsonPretty(config, buf, 300);
 }
 
 void Config::fromJson(JsonObject source) {
@@ -104,6 +108,10 @@ void Config::fromJson(JsonObject source) {
     }
     if (source["exitRssi"] != conf.exitRssi) {
         conf.exitRssi = source["exitRssi"];
+        modified = true;
+    }
+    if (source["droneSize"] != conf.droneSize) {
+        conf.droneSize = source["droneSize"];
         modified = true;
     }
     if (source["name"] != conf.pilotName) {
@@ -140,6 +148,16 @@ uint8_t Config::getExitRssi() {
     return conf.exitRssi;
 }
 
+uint8_t Config::getDroneSize() {
+    return conf.droneSize;
+}
+
+uint8_t Config::getGateDiameter() {
+    // 根据飞机大小返回计时门直径
+    // 小飞机(0): 2米，大飞机(1): 4米
+    return (conf.droneSize == DRONE_SIZE_SMALL) ? 2 : 4;
+}
+
 char* Config::getSsid() {
     return conf.ssid;
 }
@@ -160,6 +178,7 @@ void Config::setDefaults(void) {
     conf.announcerRate = 10;
     conf.enterRssi = 120;
     conf.exitRssi = 100;
+    conf.droneSize = DRONE_SIZE_SMALL;  // 默认小飞机
     // strlcpy(conf.ssid, "FCJLY", sizeof(conf.ssid));
     // strlcpy(conf.password, "fcj8949008ly", sizeof(conf.password));
 
