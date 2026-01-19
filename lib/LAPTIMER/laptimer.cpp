@@ -20,7 +20,13 @@ void LapTimer::init(Config *config, RX5808 *rx5808, Buzzer *buzzer, Led *l) {
 
 void LapTimer::start() {
     DEBUG("LapTimer started\n");
-    state = RUNNING;
+    state = WAITING;
+    lapAvailable = false;
+    lapCount = 0;
+    rssiCount = 0;
+    memset(lapTimes, 0, sizeof(lapTimes));
+    lapPeakReset();
+    startTimeMs = 0;
     buz->beep(500);
     led->on(500);
 }
@@ -31,6 +37,9 @@ void LapTimer::stop() {
     lapCount = 0;
     rssiCount = 0;
     memset(lapTimes, 0, sizeof(lapTimes));
+    lapAvailable = false;
+    lapPeakReset();
+    startTimeMs = 0;
     buz->beep(500);
     led->on(500);
 }
@@ -57,7 +66,7 @@ void LapTimer::handleLapTimerUpdate(uint32_t currentTimeMs) {
             break;
         case WAITING:
             // detect hole shot
-            lapPeakCapture();
+            lapPeakCapture(currentTimeMs);
             if (lapPeakCaptured()) {
                 state = RUNNING;
                 startLap();
@@ -66,7 +75,7 @@ void LapTimer::handleLapTimerUpdate(uint32_t currentTimeMs) {
         case RUNNING:
             // Check if timer min has elapsed, start capturing peak
             if ((currentTimeMs - startTimeMs) > conf->getMinLapMs()) {
-                lapPeakCapture();
+                lapPeakCapture(currentTimeMs);
             }
 
             if (lapPeakCaptured()) {
@@ -81,13 +90,13 @@ void LapTimer::handleLapTimerUpdate(uint32_t currentTimeMs) {
     rssiCount = (rssiCount + 1) % LAPTIMER_RSSI_HISTORY;
 }
 
-void LapTimer::lapPeakCapture() {
+void LapTimer::lapPeakCapture(uint32_t currentTimeMs) {
     // Check if RSSI is on or post threshold, update RSSI peak
     if (rssi[rssiCount] >= conf->getEnterRssi()) {
         // Check if RSSI is greater than the previous detected peak
         if (rssi[rssiCount] > rssiPeak) {
             rssiPeak = rssi[rssiCount];
-            rssiPeakTimeMs = millis();
+            rssiPeakTimeMs = currentTimeMs;
         }
     }
 }
@@ -96,11 +105,15 @@ bool LapTimer::lapPeakCaptured() {
     return (rssi[rssiCount] < rssiPeak) && (rssi[rssiCount] < conf->getExitRssi());
 }
 
+void LapTimer::lapPeakReset() {
+    rssiPeak = 0;
+    rssiPeakTimeMs = 0;
+}
+
 void LapTimer::startLap() {
     DEBUG("Lap started\n");
     startTimeMs = rssiPeakTimeMs;
-    rssiPeak = 0;
-    rssiPeakTimeMs = 0;
+    lapPeakReset();
     buz->beep(200);
     led->on(200);
 }

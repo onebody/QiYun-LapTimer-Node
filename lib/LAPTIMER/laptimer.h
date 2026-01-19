@@ -35,14 +35,14 @@ class LapTimer {
     Buzzer *buz;
     Led *led;
     KalmanFilter filter;
-    uint32_t startTimeMs;
+    uint32_t startTimeMs = 0;
     uint8_t lapCount;
     uint8_t rssiCount;
     uint32_t lapTimes[LAPTIMER_LAP_HISTORY];
     uint8_t rssi[LAPTIMER_RSSI_HISTORY];
 
-    uint8_t rssiPeak;
-    uint32_t rssiPeakTimeMs;
+    uint8_t rssiPeak = 0;
+    uint32_t rssiPeakTimeMs = 0;
 
     bool lapAvailable = false;
 
@@ -52,7 +52,7 @@ class LapTimer {
     uint8_t calibrationMaxNoise = 0;
     uint8_t calibrationMaxPeak = 0;
 
-    void lapPeakCapture();
+    void lapPeakCapture(uint32_t currentTimeMs);
     bool lapPeakCaptured();
     void lapPeakReset();
 

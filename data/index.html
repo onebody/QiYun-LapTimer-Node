@@ -121,7 +121,7 @@
 
         <div class="config-item">
           <label for="pwd">WiFi 密码:</label>
-          <input type="text" id="pwd" maxlength="32" />
+          <input type="password" id="pwd" maxlength="32" />
         </div>
       </div>
       <button id="EnableAudioButton" onclick="enableAudioLoop()">开启语音</button>
@@ -132,18 +132,18 @@
     </div>
 
     <div id="race" class="tabcontent">
-      <div class="timer-container">
-        <div class="timer" id="timer">00:00:00 秒</div>
+      <div class="race-topbar">
+        <div class="timer-container">
+            <div class="timer" id="timer">00:00:00.000</div>
+          </div>
+        <p>
+        <div class="button-container">
+          <button onclick="startRace()" id="startRaceButton" aria-label="开始比赛">▶ 开始</button>
+          <button onclick="stopRace()" id="stopRaceButton" aria-label="停止比赛">■ 停止</button>
+          <button onclick="confirmClear()" id="clearButton" aria-label="清空圈数">🧹 清空</button>
+        </div>
+        </p>
       </div>
-      <div class="button-container">
-        <button onclick="startRace()" id="startRaceButton">开始</button>
-        <button onclick="stopRace()" id="stopRaceButton">停止</button>
-        <button onclick="clearLaps()">清空</button>
-      </div>
-
-      <!-- <div class="race-info">
-        <div class="race-mode">练习模式: 选择组别前比赛不会保存</div>
-      </div> -->
       <div class="lap-table-container">
         <table id="lapTable">
           <thead>
@@ -157,14 +157,14 @@
             </tr>
           </thead>
           <tbody>
-            <!-- <tr>
-              <td>-</td>
+            <tr id="pilot-default-row">
+              <td>QiYun</td>
               <td>0</td>
               <td>-</td>
               <td>-</td>
               <td>-</td>
-              <td>-</td>
-            </tr> -->
+              <td>0</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -172,9 +172,19 @@
       <!-- 每圈成绩显示区域 -->
       <div class="lap-times-container">
         <div class="driver-info">
-          <div class="driver-name" id="lapdrivername">-</div>
-          <div class="rssi-value" id="laprssifeq">-</div>
-           <button class="add-lap-btn" onclick="addManualLap()">+ 圈</button>
+          <div class="driver-name" id="lapdrivername">QiYun</div>
+          <div class="rssi-value" id="laprssifeq">5658</div>
+          <button class="add-lap-btn" onclick="addManualLap()">+ 圈</button>
+        </div>
+
+        <div class="r1-panel" id="r1-panel">
+          <div class="r1-label">R1</div>
+          <div class="r1-frequency" id="r1-frequency">5658</div>
+          <div class="r1-spectrum" id="r1-spectrum">
+            <canvas id="r1Chart" width="300" height="60"></canvas>
+          </div>
+            <div class="r1-enter" id="r1-enter">进入</div>
+            <div class="r1-value" id="r1-value">--</div>
         </div>
 
         <div class="rssi-bar-container">
@@ -203,7 +213,7 @@
         <canvas id="rssiChart"></canvas>
       </div>
       <div class="config-item">
-        <label for="enter">进入 RSSI 阈值:</label>
+        <label for="enter">EnterAt:</label>
         <div class="input-with-value">
           <span id="enterSpan" class="val">120</span>
           <input type="range" min="50" max="255" step="1" id="enter" value="120"
@@ -211,21 +221,23 @@
         </div>
       </div>
       <div class="config-item">
-        <label for="exit">退出 RSSI 阈值:</label>
+        <label for="exit">ExitAt:</label>
         <div class="input-with-value">
           <span id="exitSpan" class="val">100</span>
           <input type="range" min="50" max="255" step="1" id="exit" value="100" oninput="updateExitRssi(this,value)" />
         </div>
       </div>
-      <button onclick="saveConfig()">保存 RSSI 阈值</button>
+      <button onclick="saveConfig()">保存配置</button>
 
       <hr />
       <h3>自动校准向导</h3>
       <div style="margin-bottom: 20px;">
-        <button id="startAutoCalibBtn"
-          style="padding: 10px 20px; font-size: 16px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
-          开始校准
-        </button>
+        <div class="calib-controls">
+          <button id="startAutoCalibBtn" class="btn primary">
+            开始校准
+          </button>
+          <button id="applyCalibBtn" class="btn primary-outline" style="margin-left:8px;">应用并保存</button>
+        </div>
       </div>
       <div id="calibWizard">
         <div id="calibStep1" class="calib-step">
@@ -238,29 +250,27 @@
           <p>步骤 1/2: 正在测量底噪...</p>
           <p>当前飞机大小: <span id="currentDroneSize2">小飞机 (2米计时门)</span></p>
           <p>请保持静止，等待几秒钟。</p>
-          <button onclick="stopCalibNoise()">完成测量</button>
+          <button onclick="stopAutoCalibration()">完成测量</button>
           <p>当前底噪峰值: <span id="calibNoiseVal">0</span></p>
         </div>
         <div id="calibStep3" class="calib-step" style="display: none;">
           <p>步骤 2/2: 结果确认</p>
           <p id="calibResultInfo">底噪: <span id="resNoise"></span></p>
           <p>推荐配置: 进入=<span id="recEnter"></span>, 退出=<span id="recExit"></span></p>
-          <button onclick="applyCalib()">应用并保存</button>
-          <button onclick="resetCalib()">取消</button>
         </div>
       </div>
     </div>
 
     <div id="ota" class="tabcontent">
       <div class="firmware-update">
-        <iframe id="ota-iframe" src="" width="100%" height="600px" frameborder="0"
+        <iframe id="ota-iframe" src="/update" width="100%" height="600px" frameborder="0"
           sandbox="allow-same-origin allow-scripts allow-forms"></iframe>
       </div>
     </div>
   </main>
 
   <footer>
-    <p>Powered by <a href="https://github.com/onebody/PhobosLT" target="_blank" rel="noopener noreferrer">QiYun-FPV</a>
+    <p>Powered by <a href="https://github.com/onebody/QiYun-LapTimer-Node" target="_blank" rel="noopener noreferrer">QiYun-FPV</a>
     </p>
   </footer>
 
