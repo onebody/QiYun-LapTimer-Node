@@ -1,16 +1,91 @@
 :root {
-  --primary-color: #1f6feb;
-  --primary-color-dark: #184ea8;
-  --secondary-color: #2b2f3a;
-  --background-color: #f3f6fb;
-  --text-color: #1f2937;
-  --border-color: #e6eefc;
+  --primary-color: #7cb5ec;
+  --primary-color-dark: #5a9bd8;
+  --secondary-color: #434348;
+  --background-color: #f8f9fa;
+  --text-color: #333;
+  --text-muted: #6c757d;
+  --border-color: #dee2e6;
+  --success-color: #28a745;
+  --success-color-dark: #218838;
+  --toast-success-bg: #d4edda;
+  --toast-success-text: #155724;
+  --toast-warning-bg: #fff3cd;
+  --toast-warning-text: #856404;
+  --toast-error-bg: #f8d7da;
+  --toast-error-text: #721c24;
+  --toast-info-bg: #d1ecf1;
+  --toast-info-text: #0c5460;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+/* 浮窗提示样式 */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast {
+  padding: 15px 20px;
+  border-radius: 4px;
+  color: white;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  animation: toastFadeIn 0.3s ease-in-out;
+  max-width: 300px;
+  word-wrap: break-word;
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.toast.success {
+  background-color: var(--toast-success-bg);
+  color: var(--toast-success-text);
+  border-left: 4px solid #28a745;
+}
+
+.toast.warning {
+  background-color: var(--toast-warning-bg);
+  color: var(--toast-warning-text);
+  border-left: 4px solid #ffc107;
+}
+
+.toast.error {
+  background-color: var(--toast-error-bg);
+  color: var(--toast-error-text);
+  border-left: 4px solid #dc3545;
+}
+
+.toast.info {
+  background-color: var(--toast-info-bg);
+  color: var(--toast-info-text);
+  border-left: 4px solid #17a2b8;
+}
+
+@keyframes toastFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.toast.fade-out {
+  opacity: 0;
+  transform: translateX(100%);
 }
 
 body {
@@ -178,307 +253,6 @@ table tr:nth-child(even) {
   background-color: #f2f2f2;
 }
 
-/* 比赛页面样式 */
-#race {
-  background-color: white;
-  color: var(--text-color);
-}
-
-#race h2 {
-  color: var(--text-color);
-  margin-bottom: 16px;
-}
-
-#race .button-container {
-  display: flex;
-  justify-content: space-around;
-  margin-bottom: 16px;
-}
-
-.button-container button {
-  min-width: 110px;
-  padding: 12px 18px;
-  font-size: 18px;
-  border-radius: 8px;
-}
-
-.button-container button[disabled] {
-  opacity: 0.5;
-  cursor: not-allowed;
-  filter: grayscale(20%);
-}
-
-#race .timer-container {
-  text-align: center;
-  margin-bottom: 16px;
-}
-
-#race .timer {
-  font-size: 36px;
-  font-weight: bold;
-  color: var(--text-color);
-}
-
-#race .race-info {
-  background-color: #f0f0f0;
-  padding: 8px;
-  margin-bottom: 16px;
-  border-radius: 4px;
-}
-
-#race .race-mode {
-  color: var(--text-color);
-  font-weight: bold;
-}
-
-#race .lap-table-container {
-  background-color: white;
-  border-radius: 4px;
-  padding: 8px;
-}
-
-.race-topbar {
-  display: flex;
-  flex-direction: column; /* 时间与操作区分为两行 */
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px 8px;
-  width: 100%;
-}
-
-.race-topbar .timer {
-  font-size: 48px;
-  color: var(--secondary-color);
-  text-align: center;
-  width: 100%;
-}
-
-.race-topbar .button-container {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  width: 100%;
-}
-
-.r1-panel {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px;
-  margin: 12px 8px 0 8px;
-  border-radius: 8px;
-  background: linear-gradient(90deg, rgba(31,111,235,0.06), rgba(24,78,168,0.03));
-  border: 1px solid var(--border-color);
-}
-
-.r1-panel .r1-label {
-  background: var(--primary-color);
-  color: white;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-weight: bold;
-}
-
-.r1-panel .r1-frequency {
-  font-size: 20px;
-  font-weight: bold;
-  color: var(--secondary-color);
-}
-
-.r1-panel .r1-spectrum {
-  width: 180px;
-  height: 28px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, #ff4d4f, #ffcc00, #00c853);
-  box-shadow: inset 0 0 6px rgba(0,0,0,0.06);
-}
-
-.r1-panel .r1-enter {
-  margin-left: auto;
-  background: #10b981;
-  color: white;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-weight: bold;
-}
-
-#race table {
-  background-color: white;
-}
-
-#race table th {
-  background-color: var(--primary-color);
-  color: white;
-}
-
-#race table td {
-  color: var(--text-color);
-  border-color: var(--border-color);
-}
-
-#race table tr:nth-child(even) {
-  background-color: #f9f9f9;
-}
-
-#race table .fastest-lap {
-  background-color: #00cc00;
-  color: white;
-  font-weight: bold;
-}
-
-/* 每圈成绩显示样式 */
-.lap-times-container {
-  margin-top: 20px;
-  border-radius: 4px;
-  overflow: hidden;
-  border: 1px solid var(--border-color);
-}
-
-.driver-info {
-  display: flex;
-  align-items: center;
-  background-color: var(--primary-color);
-  padding: 10px;
-  color: white;
-  font-weight: bold;
-}
-
-.driver-name {
-  font-size: 24px;
-  align-items: center;
-  margin: 0 auto;
-}
-
-.rssi-value {
-  font-size: 20px;
-  margin-right: 20px;
-}
-
-.add-lap-btn {
-  background-color: var(--primary-color-dark);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background-color 0.3s;
-}
-
-.add-lap-btn:hover {
-  background-color: #5a8bc5;
-}
-
-.rssi-bar-container {
-  position: relative;
-  background-color: #f0f0f0;
-  height: 30px;
-  padding: 0 10px;
-}
-
-.rssi-bar {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.rssi-line {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(to right, #ff0000, #ffff00, #00ff00);
-  transform: translateY(-50%);
-}
-
-.rssi-scale {
-  position: absolute;
-  color: var(--text-color);
-  font-size: 12px;
-}
-
-.rssi-scale:nth-child(2) {
-  top: 5px;
-  right: 10px;
-}
-
-.rssi-scale:nth-child(3) {
-  bottom: 5px;
-  right: 10px;
-}
-
-.driver-times {
-  display: flex;
-  align-items: center;
-  background-color: #f0f0f0;
-  padding: 10px;
-  color: var(--text-color);
-  font-weight: bold;
-}
-
-.driver-label {
-  margin-right: auto;
-}
-
-.clear-laps-btn {
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  font-size: 14px;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background-color 0.3s;
-}
-
-.clear-laps-btn:hover {
-  background-color: #c82333;
-}
-
-.lap-times-list {
-  background-color: white;
-  padding: 10px;
-}
-
-.lap-time-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: #f8f9fa;
-  color: var(--text-color);
-  padding: 10px;
-  margin-bottom: 5px;
-  font-weight: bold;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-}
-
-.lap-time-item .time {
-  font-size: 16px;
-}
-
-.lap-time-item .remove-btn {
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  width: 30px;
-  height: 30px;
-  border-radius: 4px;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.3s;
-}
-
-.lap-time-item .remove-btn:hover {
-  background-color: #c82333;
-}
-
 #timer {
   font-size: 24px;
   font-weight: bold;
@@ -501,11 +275,349 @@ footer {
 
 footer a {
   color: white;
-  text-decoration: none;
 }
 
-footer a:hover {
-  text-decoration: underline;
+.hidden {
+  display: none;
+}
+
+/* 高级设置折叠功能样式 */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px 0;
+  user-select: none;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 18px;
+  transition: color 0.2s;
+}
+
+.section-header:hover h3 {
+  color: var(--main-color);
+}
+
+.section-header span {
+  font-size: 14px;
+  color: var(--main-color);
+  transition: transform 0.2s;
+}
+
+/* 优化校准页面布局 */
+.calib-section {
+  margin-bottom: 25px;
+  padding: 15px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.calib-section h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 18px;
+  color: var(--main-color);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 10px;
+}
+
+/* 简化步骤样式 */
+.step-info h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: var(--main-color);
+}
+
+.step-description {
+  margin-bottom: 15px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.current-settings {
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.current-settings p {
+  margin: 5px 0;
+}
+
+/* 优化按钮样式 */
+.step-controls {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.calib-actions {
+  margin-top: 30px;
+  text-align: center;
+}
+
+.calib-actions .save-btn {
+  padding: 10px 25px;
+  font-size: 16px;
+}
+
+/* 校准页面新样式 */
+.calib-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.calib-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.calib-section h3 {
+  margin: 0 0 15px 0;
+  color: var(--primary-color);
+  font-size: 1.2em;
+  border-bottom: 2px solid var(--primary-color);
+  padding-bottom: 8px;
+}
+
+.chart-container {
+  background: var(--background-color);
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 10px;
+}
+
+.threshold-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+.threshold-item {
+  background: var(--background-color);
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.threshold-item label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.gate-diameter {
+  font-weight: bold;
+  color: var(--primary-color);
+  font-size: 1.1em;
+}
+
+.wizard-container {
+  background: var(--background-color);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.wizard-step {
+  padding: 20px;
+}
+
+.step-info h4 {
+  margin: 0 0 15px 0;
+  color: var(--primary-color);
+  font-size: 1.1em;
+}
+
+.step-description {
+  margin-bottom: 15px;
+  line-height: 1.5;
+  color: var(--text-color);
+}
+
+.current-settings {
+  background: white;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  font-size: 0.9em;
+  border-left: 4px solid var(--primary-color);
+}
+
+.current-settings p {
+  margin: 5px 0;
+}
+
+.calib-progress {
+  background: white;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.progress-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.progress-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.progress-value {
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+.calib-results {
+  background: white;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.result-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.result-label {
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.result-value {
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+.result-unit {
+  font-size: 0.9em;
+  color: var(--text-muted);
+}
+
+.step-note {
+  font-size: 0.9em;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 10px;
+}
+
+.step-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.advanced-config {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 15px;
+}
+
+.advanced-config .config-item {
+  background: var(--background-color);
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.calib-actions {
+  text-align: center;
+  padding-top: 20px;
+  border-top: 2px solid var(--border-color);
+}
+
+/* 按钮样式 */
+.primary-btn, .secondary-btn, .save-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.primary-btn {
+  background: var(--primary-color);
+  color: white;
+}
+
+.primary-btn:hover {
+  background: var(--primary-color-dark);
+}
+
+.secondary-btn {
+  background: white;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+.secondary-btn:hover {
+  background: var(--border-color);
+}
+
+.save-btn {
+  background: var(--success-color, #28a745);
+  color: white;
+  font-size: 1.1em;
+  padding: 12px 30px;
+}
+
+.save-btn:hover {
+  background: var(--success-color-dark, #218838);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .threshold-controls,
+  .config-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .advanced-config {
+    grid-template-columns: 1fr;
+  }
+  
+  .step-controls {
+    flex-direction: column;
+  }
+  
+  .primary-btn, .secondary-btn {
+    width: 100%;
+  }
 }
 
 @media (max-width: 150px) {
@@ -549,178 +661,4 @@ footer a:hover {
   table td {
       padding: 8px;
   }
-}
-
-
-
-.nodes-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 10px 0;
-}
-
-.node-item {
-  border: 1px solid var(--border-color);
-  padding: 10px;
-  border-radius: 4px;
-  background-color: white;
-  cursor: pointer;
-  transition: all 0.3s;
-  min-width: 200px;
-}
-
-.node-item:hover {
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-.node-item.active {
-  background-color: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color-dark);
-}
-
-.node-info {
-  font-size: 14px;
-}
-.multi-node-setup {
-  background: white;
-  border-radius: 6px;
-  padding: 10px;
-  color: var(--text-color);
-  border: 1px solid var(--border-color);
-}
-
-.multi-node-header {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.multi-node-titlebar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.multi-node-title {
-  font-size: 20px;
-  font-weight: bold;
-  color: var(--primary-color);
-}
-
-.mock-nodes-notice {
-  font-size: 13px;
-  opacity: 0.9;
-}
-
-.multi-node-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.multi-node-row-label {
-  min-width: 64px;
-  font-weight: bold;
-  opacity: 0.95;
-}
-
-.multi-node-setup select,
-.multi-node-setup input[type="text"] {
-  background: white;
-  color: var(--text-color);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 6px 8px;
-  font-size: 14px;
-  outline: none;
-}
-
-.multi-node-setup input[type="text"]::placeholder {
-  color: rgba(0, 0, 0, 0.6);
-}
-
-.multi-node-setup button {
-  margin: 0;
-  padding: 6px 10px;
-  background-color: var(--primary-color);
-  color: white;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: bold;
-}
-
-.multi-node-setup button:hover {
-  background-color: var(--primary-color-dark);
-}
-
-.node-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.node-card {
-  background: white;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.node-card.active {
-  outline: 2px solid var(--primary-color);
-}
-
-.node-card.disabled {
-  opacity: 0.85;
-}
-
-.node-card-header {
-  background: var(--primary-color);
-  color: white;
-  font-weight: bold;
-  padding: 4px 8px;
-  font-size: 13px;
-}
-
-.node-card.disabled .node-card-header {
-  background: #6c757d;
-}
-
-.node-card-body {
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.node-card select,
-.node-card input[type="number"] {
-  width: 100%;
-}
-
-.node-card input[type="number"] {
-  background: white;
-  color: var(--text-color);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 6px 8px;
-  font-size: 14px;
-}
-
-.add-node-container {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.add-node-container input[type="text"] {
-  flex: 1 1 260px;
-  min-width: 220px;
 }

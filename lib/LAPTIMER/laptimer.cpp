@@ -25,8 +25,8 @@ void LapTimer::start() {
     lapCount = 0;
     rssiCount = 0;
     memset(lapTimes, 0, sizeof(lapTimes));
-    lapPeakReset();
     startTimeMs = 0;
+    lapPeakReset();
     buz->beep(500);
     led->on(500);
 }
@@ -38,8 +38,8 @@ void LapTimer::stop() {
     rssiCount = 0;
     memset(lapTimes, 0, sizeof(lapTimes));
     lapAvailable = false;
-    lapPeakReset();
     startTimeMs = 0;
+    lapPeakReset();
     buz->beep(500);
     led->on(500);
 }
@@ -50,12 +50,14 @@ void LapTimer::handleLapTimerUpdate(uint32_t currentTimeMs) {
     // DEBUG("RSSI: %u\n", rssi[rssiCount]);
 
     if (isCalibratingNoise) {
+        if (calibrationNoiseSamples < 65535) calibrationNoiseSamples++;
         if (rssi[rssiCount] > calibrationMaxNoise) {
             calibrationMaxNoise = rssi[rssiCount];
         }
     }
 
     if (isCalibratingCrossing) {
+        if (calibrationCrossingSamples < 65535) calibrationCrossingSamples++;
         if (rssi[rssiCount] > calibrationMaxPeak) {
             calibrationMaxPeak = rssi[rssiCount];
         }
@@ -102,7 +104,19 @@ void LapTimer::lapPeakCapture(uint32_t currentTimeMs) {
 }
 
 bool LapTimer::lapPeakCaptured() {
-    return (rssi[rssiCount] < rssiPeak) && (rssi[rssiCount] < conf->getExitRssi());
+    // 获取计时门直径（毫米）
+    uint16_t gateDiameterMm = conf->getGateDiameterMm();
+    
+    // 基于计时门直径计算最小RSSI变化量（降低要求以提高检测灵敏度）
+    // 直径越小，需要的RSSI变化量越大，以确保信号来自门内
+    uint8_t minDelta = (gateDiameterMm == 1500) ? 25 : 15;
+    
+    // 检查当前RSSI是否低于峰值和退出阈值，并且RSSI变化量足够大
+    // 只有当RSSI变化量足够大时，才认为是有效的过门信号
+    bool rssiConditions = (rssi[rssiCount] < rssiPeak) && (rssi[rssiCount] < conf->getExitRssi());
+    bool deltaCondition = (rssiPeak - conf->getExitRssi()) >= minDelta;
+    
+    return rssiConditions && deltaCondition;
 }
 
 void LapTimer::lapPeakReset() {
@@ -147,6 +161,7 @@ bool LapTimer::isLapAvailable() {
 void LapTimer::startCalibrationNoise() {
     isCalibratingNoise = true;
     calibrationMaxNoise = 0;
+    calibrationNoiseSamples = 0;
     buz->beep(200);
 }
 
@@ -159,6 +174,7 @@ uint8_t LapTimer::stopCalibrationNoise() {
 void LapTimer::startCalibrationCrossing() {
     isCalibratingCrossing = true;
     calibrationMaxPeak = 0;
+    calibrationCrossingSamples = 0;
     buz->beep(200);
 }
 
@@ -166,4 +182,20 @@ uint8_t LapTimer::stopCalibrationCrossing() {
     isCalibratingCrossing = false;
     buz->beep(200);
     return calibrationMaxPeak;
+}
+
+uint8_t LapTimer::getCalibrationMaxNoise() {
+    return calibrationMaxNoise;
+}
+
+uint8_t LapTimer::getCalibrationMaxPeak() {
+    return calibrationMaxPeak;
+}
+
+uint16_t LapTimer::getCalibrationNoiseSamples() {
+    return calibrationNoiseSamples;
+}
+
+uint16_t LapTimer::getCalibrationCrossingSamples() {
+    return calibrationCrossingSamples;
 }

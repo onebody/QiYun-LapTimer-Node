@@ -1,27 +1,43 @@
-const bcf = document.getElementById("bandChannelFreq");
-const bandSelect = document.getElementById("bandSelect");
-const channelSelect = document.getElementById("channelSelect");
-const freqOutput = document.getElementById("freqOutput");
-const announcerSelect = document.getElementById("announcerSelect");
-const announcerRateInput = document.getElementById("rate");
-const enterRssiInput = document.getElementById("enter");
-const exitRssiInput = document.getElementById("exit");
-const enterRssiSpan = document.getElementById("enterSpan");
-const exitRssiSpan = document.getElementById("exitSpan");
-const pilotNameInput = document.getElementById("pname");
-const ssidInput = document.getElementById("ssid");
-const pwdInput = document.getElementById("pwd")
+// 延迟初始化DOM元素，避免在某些页面（如OTA页面）中因元素不存在而导致错误
+let bcf, bandSelect, channelSelect, freqOutput, announcerSelect, announcerRateInput;
+let enterRssiInput, exitRssiInput, enterRssiSpan, exitRssiSpan, droneSizeSelect;
+let gateDiameterDisplay, calibSamplesInput, pilotNameInput, ssidInput, pwdInput;
+let minLapInput, alarmThreshold;
 
-const lap_driver_name = document.getElementById("lapdrivername");
-const lap_driver_name1 = document.getElementById("lapdrivername1");
-const laprssifeq = document.getElementById("laprssifeq");
+// 在DOM加载完成后初始化元素
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeDOMElements);
+} else {
+  initializeDOMElements();
+}
 
-// 存储原始WiFi配置
-let originalSsid = "";
-let originalPwd = "";
-const minLapInput = document.getElementById("minLap");
-const alarmThreshold = document.getElementById("alarmThreshold");
-const droneSizeSelect = document.getElementById("droneSize");
+function initializeDOMElements() {
+  bcf = document.getElementById("bandChannelFreq");
+  bandSelect = document.getElementById("bandSelect");
+  channelSelect = document.getElementById("channelSelect");
+  freqOutput = document.getElementById("freqOutput");
+  announcerSelect = document.getElementById("announcerSelect");
+  announcerRateInput = document.getElementById("rate");
+  enterRssiInput = document.getElementById("enter");
+  exitRssiInput = document.getElementById("exit");
+  enterRssiSpan = document.getElementById("enterSpan");
+  exitRssiSpan = document.getElementById("exitSpan");
+  droneSizeSelect = document.getElementById("droneSizeSelect");
+  gateDiameterDisplay = document.getElementById("gateDiameterDisplay");
+  calibSamplesInput = document.getElementById("calibSamples");
+  pilotNameInput = document.getElementById("pname");
+  ssidInput = document.getElementById("ssid");
+  pwdInput = document.getElementById("pwd");
+  minLapInput = document.getElementById("minLap");
+  alarmThreshold = document.getElementById("alarmThreshold");
+  
+  // 添加事件监听器
+  if (bcf) {
+    bcf.addEventListener("change", function handleChange(event) {
+      populateFreqOutput();
+    });
+  }
+}
 
 // ESP32设备的基础URL
 // 默认使用相对路径（当从ESP32设备本身提供服务时）
@@ -42,6 +58,28 @@ const race = document.getElementById("race");
 const calib = document.getElementById("calib");
 const ota = document.getElementById("ota");
 
+// 浮窗提示函数
+function showToast(message, type = 'info', duration = 3000) {
+  const toastContainer = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  
+  toastContainer.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.classList.add('fade-out');
+    setTimeout(() => {
+      toast.remove();
+    }, 300);
+  }, duration);
+}
+
+// 全局覆盖alert函数，将所有alert转换为浮窗提示
+window.alert = function(message) {
+  showToast(message, 'info');
+};
+
 var enterRssi = 120,
   exitRssi = 100;
 var frequency = 0;
@@ -51,7 +89,6 @@ var lapNo = -1;
 var lapTimes = [];
 
 var timerInterval;
-var timerStart = null;
 const timer = document.getElementById("timer");
 const startRaceButton = document.getElementById("startRaceButton");
 const stopRaceButton = document.getElementById("stopRaceButton");
@@ -63,316 +100,567 @@ var rssiChart;
 var crossing = false;
 var rssiSeries = new TimeSeries();
 var rssiCrossingSeries = new TimeSeries();
-var r1Series = new TimeSeries();
 var maxRssiValue = enterRssi + 10;
 var minRssiValue = exitRssi - 10;
-var r1Chart = null;
-var lastEnterTime = null; // seconds since race start of the last 'enter'
 
 var audioEnabled = false;
 var speakObjsQueue = [];
 
-// 自动校准逻辑
+// Remember original WiFi settings loaded from device so we can detect changes
+let originalSsid = "";
+let originalPwd = "";
+
 let calibMaxNoise = 0;
 let calibMaxPeak = 0;
 let calibPollInterval = null;
-let autoCalibrationInProgress = false;
-let calibLiveMaxNoise = 0;
-let autoCalibrationMeasuring = false;
-let autoCalibrationStopTimeout = null;
+let calibNoiseSamples = 0;
+let calibCrossingSamples = 0;
+let calibTargetSamples = 20;
 
-function pushNotice(message, kind = "info", timeoutMs = 2500) {
-  let container = document.getElementById("global-error-display");
-  if (!container) {
-    container = document.createElement("div");
-    container.id = "global-error-display";
-    container.style.position = "fixed";
-    container.style.top = "10px";
-    container.style.right = "10px";
-    container.style.zIndex = "9999";
-    container.style.maxWidth = "400px";
-    document.body.appendChild(container);
-  }
+function getSelectedDroneSize() {
+  const v = parseInt(droneSizeSelect?.value || "5");
+  return v === 2 ? 2 : 5;
+}
 
-  const colors = {
-    info: { bg: "#1e3a8a", fg: "#ffffff" },
-    success: { bg: "#166534", fg: "#ffffff" },
-    warn: { bg: "#92400e", fg: "#ffffff" },
-    error: { bg: "#991b1b", fg: "#ffffff" },
-  };
-  const c = colors[kind] || colors.info;
+function getGateDiameterMm(droneSize) {
+  return droneSize === 2 ? 1500 : 3000;
+}
 
-  const el = document.createElement("div");
-  el.textContent = message;
-  el.style.background = c.bg;
-  el.style.color = c.fg;
-  el.style.padding = "10px 12px";
-  el.style.marginTop = "8px";
-  el.style.borderRadius = "8px";
-  el.style.boxShadow = "0 6px 18px rgba(0,0,0,0.18)";
-  el.style.fontSize = "14px";
-  el.style.lineHeight = "18px";
-  el.style.wordBreak = "break-word";
-  container.appendChild(el);
+function getCalibrationSamplesTarget() {
+  let v = parseInt(calibSamplesInput?.value || "20");
+  if (!Number.isFinite(v)) v = 20;
+  if (v < 10) v = 10;
+  if (v > 200) v = 200;
+  if (calibSamplesInput) calibSamplesInput.value = String(v);
+  return v;
+}
 
-  if (timeoutMs > 0) {
-    window.setTimeout(() => {
-      if (el && el.parentNode) el.parentNode.removeChild(el);
-    }, timeoutMs);
+function updateGateDiameterUi() {
+  const droneSize = getSelectedDroneSize();
+  const diameterMm = getGateDiameterMm(droneSize);
+  if (gateDiameterDisplay) {
+    gateDiameterDisplay.textContent = (diameterMm / 1000).toFixed(1) + " 米";
   }
 }
 
-function computeRecommendedEnterExit(maxNoise) {
-  const droneSize = parseInt(droneSizeSelect.value);
-  const enterRatio = droneSize === 1 ? 0.5 : 0.6;
-  const exitRatio = droneSize === 1 ? 0.2 : 0.3;
+function clamp(v, minV, maxV) {
+  if (v < minV) return minV;
+  if (v > maxV) return maxV;
+  return v;
+}
 
-  const estimatedPeak = maxNoise + 40;
-  let recEnter = Math.round(maxNoise + (estimatedPeak - maxNoise) * enterRatio);
-  let recExit = Math.round(maxNoise + (estimatedPeak - maxNoise) * exitRatio);
+function getCalibrationTuning(droneSize) {
+  // 获取用户设置的降低量百分比（默认为30%）
+  const dropPercentageEl = document.getElementById('calibDropPercentage');
+  const dropPercentage = dropPercentageEl ? parseFloat(dropPercentageEl.value) / 100 : 0.3;
+  
+  const diameterM = getGateDiameterMm(droneSize) / 1000;
+  const diameterRatio = diameterM / 3.0; // 归一化到标准3米直径
+  
+  // 基于用户设置的百分比和计时门直径计算进入和退出比例
+  // 计时门直径越小，要求进入和退出比例越高，以确保只有在门内才能检测到信号
+  const enterBaseRatio = clamp(1 - dropPercentage * 0.7, 0.55, 0.8);
+  const exitBaseRatio = clamp(1 - dropPercentage * 1.3, 0.2, 0.7);
+  
+  // 直径校正因子：直径越小，校正因子越大，要求信号强度更高
+  const diameterCorrection = 1.0 + (1.0 - diameterRatio) * 0.3;
+  const enterRatio = clamp(enterBaseRatio * diameterCorrection, 0.65, 0.9);
+  const exitRatio = clamp(exitBaseRatio * diameterCorrection, 0.3, 0.8);
+  
+  // 基于计时门直径计算最小RSSI变化量
+  // 直径越小，需要的RSSI变化量越大，以确保信号来自门内
+  // 降低要求以提高检测灵敏度，与后端保持一致
+  const minDelta = clamp(Math.round(25 * (1.5 / diameterM)), 10, 35);
+  const estimatedDelta = clamp(minDelta + 15, 20, 50);
+  return { enterRatio, exitRatio, minDelta, estimatedDelta };
+}
 
-  if (recEnter > 255) recEnter = 255;
-  if (recExit < 0) recExit = 0;
+function computeRecommendedEnterExit(noise, peak, droneSize) {
+  const tuning = getCalibrationTuning(droneSize);
+  const deltaRaw = (peak == null ? tuning.estimatedDelta : Math.max(0, peak - noise));
+  
+  // 确保RSSI变化量至少达到与计时门直径相关的最小阈值
+  // 只有当信号变化足够大时，才会检测到过线，确保在计时门直径范围内
+  const effectiveDelta = Math.max(deltaRaw, tuning.minDelta);
+  
+  let recEnter = Math.round(noise + effectiveDelta * tuning.enterRatio);
+  let recExit = Math.round(noise + effectiveDelta * tuning.exitRatio);
+  
+  recEnter = clamp(recEnter, 0, 255);
+  recExit = clamp(recExit, 0, 255);
+  
+  // 确保进入阈值大于退出阈值，并保持适当的差距
   if (recEnter <= recExit) {
-    if (recExit >= 250) {
-      recEnter = 255;
-      recExit = 250;
+    recEnter = clamp(recExit + 10, 0, 255);
+  }
+  
+  return {
+    enter: recEnter,
+    exit: recExit,
+    delta: peak == null ? deltaRaw : peak - noise,
+    minDelta: tuning.minDelta,
+  };
+}
+
+function updateLiveRecommendation(prefix, rec) {
+  const enterEl = document.getElementById(prefix === "noise" ? "liveRecEnterNoise" : "liveRecEnterCrossing");
+  const exitEl = document.getElementById(prefix === "noise" ? "liveRecExitNoise" : "liveRecExitCrossing");
+  if (enterEl) enterEl.textContent = rec.enter;
+  if (exitEl) exitEl.textContent = rec.exit;
+}
+
+// 更新调节滑块的值
+function updateSliderValues(enter, exit) {
+  if (enterRssiInput) {
+    enterRssiInput.value = enter;
+    updateEnterRssi(enterRssiInput, enter);
+  }
+  if (exitRssiInput) {
+    exitRssiInput.value = exit;
+    updateExitRssi(exitRssiInput, exit);
+  }
+}
+
+// 切换高级设置显示
+function toggleAdvancedSettings() {
+  const advancedConfig = document.getElementById('advancedConfig');
+  const toggleIcon = document.getElementById('advancedToggle');
+  if (advancedConfig) {
+    if (advancedConfig.classList.contains('hidden')) {
+      advancedConfig.classList.remove('hidden');
+      if (toggleIcon) toggleIcon.textContent = '▲';
     } else {
-      recEnter = recExit + 5;
+      advancedConfig.classList.add('hidden');
+      if (toggleIcon) toggleIcon.textContent = '▼';
     }
   }
-
-  return { recEnter, recExit };
 }
 
-function applyEnterExitToUi(enter, exit) {
-  if (exitRssiInput) exitRssiInput.value = exit;
-  updateExitRssi(exitRssiInput, exit);
+// 新的自动校准函数
+function startCalib() {
+  // 更新当前设置显示
+  updateCurrentSettings();
+  
+  // 添加元素存在性检查，避免在某些页面中因元素不存在而导致错误
+  const calibStep1El = document.getElementById("calibStep1");
+  const calibStep2El = document.getElementById("calibStep2");
+  const calibNoiseTargetEl = document.getElementById("calibNoiseTarget");
+  const calibNoiseSamplesEl = document.getElementById("calibNoiseSamples");
+  const liveRecEnterNoiseEl = document.getElementById("liveRecEnterNoise");
+  const liveRecExitNoiseEl = document.getElementById("liveRecExitNoise");
+  
+  if (calibStep1El) calibStep1El.style.display = "none";
+  if (calibStep2El) calibStep2El.style.display = "block";
+  
+  calibMaxNoise = 0;
+  calibNoiseSamples = 0;
+  calibTargetSamples = getCalibrationSamplesTarget();
+  
+  if (calibNoiseTargetEl) calibNoiseTargetEl.innerText = calibTargetSamples;
+  if (calibNoiseSamplesEl) calibNoiseSamplesEl.innerText = "0";
+  if (liveRecEnterNoiseEl) liveRecEnterNoiseEl.innerText = "-";
+  if (liveRecExitNoiseEl) liveRecExitNoiseEl.innerText = "-";
+  
+  const stopBtn = document.querySelector("#calibStep2 button");
+  if (stopBtn) stopBtn.disabled = true;
 
-  if (enterRssiInput) enterRssiInput.value = enter;
-  updateEnterRssi(enterRssiInput, enter);
+  console.log("开始自动校准");
+
+  // 发送自动校准请求
+  fetch(esp32BaseUrl + "/calibration/noise/start", {
+    method: "POST"
+  })
+    .then((r) => r.json())
+    .then(() => {
+      // 记录采样的RSSI值，用于后续分析
+      const rssiSamples = [];
+      
+      calibPollInterval = setInterval(() => {
+        const calibNoiseValEl = document.getElementById("calibNoiseVal");
+        if (calibNoiseValEl) {
+          calibNoiseValEl.innerText = rssiValue;
+        }
+        
+        // 记录RSSI值
+        rssiSamples.push(rssiValue);
+        
+        calibNoiseSamples += 1;
+        const calibNoiseSamplesEl = document.getElementById("calibNoiseSamples");
+        if (calibNoiseSamplesEl) {
+          calibNoiseSamplesEl.innerText = calibNoiseSamples;
+        }
+        
+        // 更新实时推荐值
+        if (rssiValue > calibMaxNoise) calibMaxNoise = rssiValue;
+        const rec = computeRecommendedEnterExit(calibMaxNoise, rssiValue, getSelectedDroneSize());
+        updateLiveRecommendation("noise", rec);
+        
+        // 实时更新滑块值
+        updateSliderValues(rec.enter, rec.exit);
+        
+        if (stopBtn) stopBtn.disabled = calibNoiseSamples < calibTargetSamples;
+        
+        // 如果达到目标采样次数，自动停止校准
+        if (calibNoiseSamples >= calibTargetSamples) {
+          stopCalib(rssiSamples);
+        }
+      }, 200);
+    });
 }
 
-// 自动校准函数
-window.startAutoCalibration = function () {
-  if (autoCalibrationInProgress || autoCalibrationMeasuring) {
-    pushNotice("校准正在进行中，请稍候…", "warn");
+// 新的停止校准函数
+function stopCalib(rssiSamples) {
+  clearInterval(calibPollInterval);
+  
+  // 发送停止校准请求
+  fetch(esp32BaseUrl + "/calibration/noise/stop", { method: "POST" })
+    .then((r) => r.json())
+    .then((data) => {
+      calibMaxNoise = Number.isFinite(data.maxNoise) ? data.maxNoise : calibMaxNoise;
+      
+      // 获取用户设置的参数
+      const calibDropPercentageEl = document.getElementById('calibDropPercentage');
+      const dropPercentage = calibDropPercentageEl ? parseFloat(calibDropPercentageEl.value) / 100 : 0.3;
+      
+      const calibDropDurationEl = document.getElementById('calibDropDuration');
+      const dropDuration = calibDropDurationEl ? parseFloat(calibDropDurationEl.value) : 10;
+      
+      // 分析采样的RSSI值，优先使用后端返回的samples，如无则使用本地收集的
+      const allSamples = (data.samples && Array.isArray(data.samples)) ? data.samples : rssiSamples;
+      
+      // 1. 过滤掉异常值（比如特别低的值）
+      const filteredSamples = allSamples.filter(val => val > calibMaxNoise + 5);
+      
+      // 2. 计算峰值（最大值）和平均峰值
+      const maxPeak = Math.max(...filteredSamples);
+      const avgPeak = filteredSamples.length > 0 ? Math.round(filteredSamples.reduce((sum, val) => sum + val, 0) / filteredSamples.length) : calibMaxNoise;
+      
+      // 3. 计算delta值
+      const delta = maxPeak - calibMaxNoise;
+      
+      // 4. 获取用户设置的采样次数
+      const calibSamplesEl = document.getElementById('calibSamples');
+      const userSampleCount = calibSamplesEl ? parseInt(calibSamplesEl.value) : 20;
+      
+      // 5. 自动尝试不同的进入和退出RSSI值组合
+      const bestCombination = findBestEnterExitCombination(filteredSamples, calibMaxNoise, maxPeak, 
+                                                          dropPercentage, dropDuration, userSampleCount);
+      
+      // 6. 计算最终推荐值（使用找到的最佳组合或默认计算）
+      const rec = bestCombination || computeRecommendedEnterExit(calibMaxNoise, maxPeak, getSelectedDroneSize());
+      
+      // 实时更新滑块值
+      updateSliderValues(rec.enter, rec.exit);
+      
+      // 保存校准后的阈值到设备
+      saveConfig()
+        .then(() => {
+          console.log("校准阈值已保存");
+          showToast("校准成功，阈值已保存", "success");
+        })
+        .catch((error) => {
+          console.error("保存校准阈值失败:", error);
+          showToast("校准成功，但保存阈值失败", "warning");
+        });
+
+      // 添加元素存在性检查，避免在某些页面中因元素不存在而导致错误
+      const resNoiseEl = document.getElementById("resNoise");
+      const resPeakEl = document.getElementById("resPeak");
+      const resDeltaEl = document.getElementById("resDelta");
+      const resMinDeltaEl = document.getElementById("resMinDelta");
+      const recEnterEl = document.getElementById("recEnter");
+      const recExitEl = document.getElementById("recExit");
+      const calibStep2El = document.getElementById("calibStep2");
+      const calibStep5El = document.getElementById("calibStep5");
+      
+      if (resNoiseEl) resNoiseEl.innerText = calibMaxNoise;
+      if (resPeakEl) resPeakEl.innerText = maxPeak;
+      if (resDeltaEl) resDeltaEl.innerText = delta;
+      
+      const tuning = getCalibrationTuning(getSelectedDroneSize());
+      if (resMinDeltaEl) resMinDeltaEl.innerText = tuning.minDelta;
+      
+      if (recEnterEl) {
+        recEnterEl.innerText = rec.enter;
+        recEnterEl.dataset.val = rec.enter;
+      }
+      if (recExitEl) {
+        recExitEl.innerText = rec.exit;
+        recExitEl.dataset.val = rec.exit;
+      }
+      if (calibStep2El) calibStep2El.style.display = "none";
+      // 修改为显示步骤3（结果确认）
+      const calibStep3El = document.getElementById("calibStep3");
+      if (calibStep3El) calibStep3El.style.display = "block";
+      if (calibStep5El) calibStep5El.style.display = "none";
+      
+      // 已在步骤5中显示校准确认选项，无需弹出对话框
+    });
+}
+
+// 查找最佳的进入和退出RSSI值组合
+function findBestEnterExitCombination(rssiSamples, noise, peak, dropPercentage, dropDuration, sampleCount) {
+  // 如果没有足够的样本，直接返回null
+  if (rssiSamples.length < sampleCount) {
+    return null;
+  }
+  
+  const delta = peak - noise;
+  const baseEnter = Math.round(noise + delta * 0.7);
+  const baseExit = Math.round(noise + delta * 0.4);
+  
+  // 生成要尝试的进入/退出组合
+  const combinations = [];
+  const testCount = Math.min(sampleCount, 20); // 限制最大尝试次数
+  
+  for (let i = 0; i < testCount; i++) {
+    // 根据用户设置的降低量百分比调整组合
+    const percentageAdjustment = (i - Math.floor(testCount / 2)) * 0.05;
+    const adjustedDropPercentage = Math.max(0.1, Math.min(0.9, dropPercentage + percentageAdjustment));
+    
+    // 计算进入和退出值
+    const enterValue = Math.round(noise + delta * (1 - adjustedDropPercentage * 0.7));
+    const exitValue = Math.round(noise + delta * (1 - adjustedDropPercentage * 1.3));
+    
+    combinations.push({ enter: enterValue, exit: exitValue, dropPercentage: adjustedDropPercentage });
+  }
+  
+  // 评估每个组合
+  let bestCombination = null;
+  let bestScore = 0;
+  
+  combinations.forEach(comb => {
+    // 计算组合的得分
+    const score = evaluateCombination(rssiSamples, comb.enter, comb.exit, dropDuration);
+    
+    if (score > bestScore) {
+      bestScore = score;
+      bestCombination = comb;
+    }
+  });
+  
+  return bestCombination;
+}
+
+// 评估进入/退出组合的得分
+function evaluateCombination(rssiSamples, enter, exit, dropDuration) {
+  // 简单的评估逻辑：
+  // 1. 检查进入阈值是否在合理范围内
+  // 2. 检查退出阈值是否在合理范围内
+  // 3. 检查进入阈值是否大于退出阈值
+  // 4. 检查RSSI值在退出阈值以下的持续时间是否符合要求
+  
+  let score = 0;
+  
+  // 基本合理性检查
+  if (enter > exit) score += 10;
+  if (enter > -100 && enter < 0) score += 5;
+  if (exit > -100 && exit < 0) score += 5;
+  
+  // 检查退出持续时间
+  let consecutiveBelowExit = 0;
+  let maxConsecutive = 0;
+  
+  for (let i = 0; i < rssiSamples.length; i++) {
+    if (rssiSamples[i] < exit) {
+      consecutiveBelowExit++;
+      maxConsecutive = Math.max(maxConsecutive, consecutiveBelowExit);
+    } else {
+      consecutiveBelowExit = 0;
+    }
+  }
+  
+  // 计算采样率（假设每200ms采样一次）
+  const sampleRate = 5; // 每秒5个样本
+  const requiredSamples = dropDuration * sampleRate;
+  
+  // 根据持续时间接近要求来调整得分
+  if (maxConsecutive >= requiredSamples) {
+    score += 15;
+  } else if (maxConsecutive >= requiredSamples * 0.8) {
+    score += 10;
+  } else if (maxConsecutive >= requiredSamples * 0.5) {
+    score += 5;
+  }
+  
+  return score;
+}
+
+function startCalibCrossing() {
+  // 添加元素存在性检查，避免在某些页面中因元素不存在而导致错误
+  const calibStep3El = document.getElementById("calibStep3");
+  const calibStep4El = document.getElementById("calibStep4");
+  const calibCrossingTargetEl = document.getElementById("calibCrossingTarget");
+  const calibCrossingSamplesEl = document.getElementById("calibCrossingSamples");
+  const liveRecEnterCrossingEl = document.getElementById("liveRecEnterCrossing");
+  const liveRecExitCrossingEl = document.getElementById("liveRecExitCrossing");
+  
+  if (calibStep3El) calibStep3El.style.display = "none";
+  if (calibStep4El) calibStep4El.style.display = "block";
+  
+  calibMaxPeak = 0;
+  calibCrossingSamples = 0;
+  calibTargetSamples = getCalibrationSamplesTarget();
+  
+  if (calibCrossingTargetEl) calibCrossingTargetEl.innerText = calibTargetSamples;
+  if (calibCrossingSamplesEl) calibCrossingSamplesEl.innerText = "0";
+  if (liveRecEnterCrossingEl) liveRecEnterCrossingEl.innerText = "-";
+  if (liveRecExitCrossingEl) liveRecExitCrossingEl.innerText = "-";
+  const stopBtn = document.querySelector("#calibStep4 button");
+  if (stopBtn) stopBtn.disabled = true;
+
+  fetch(esp32BaseUrl + "/calibration/crossing/start", { method: "POST" })
+    .then((r) => r.json())
+    .then(() => {
+      calibPollInterval = setInterval(() => {
+        const calibPeakValEl = document.getElementById("calibPeakVal");
+        if (calibPeakValEl) {
+          calibPeakValEl.innerText = rssiValue;
+        }
+        calibCrossingSamples += 1;
+        const calibCrossingSamplesEl = document.getElementById("calibCrossingSamples");
+        if (calibCrossingSamplesEl) {
+          calibCrossingSamplesEl.innerText = calibCrossingSamples;
+        }
+        if (rssiValue > calibMaxPeak) calibMaxPeak = rssiValue;
+        updateLiveRecommendation("crossing", computeRecommendedEnterExit(calibMaxNoise, calibMaxPeak, getSelectedDroneSize()));
+        if (stopBtn) stopBtn.disabled = calibCrossingSamples < calibTargetSamples;
+      }, 200);
+    });
+}
+
+function stopCalibCrossing() {
+  if (calibCrossingSamples < calibTargetSamples) {
+    showToast("过门采样次数不足，请至少采样 " + calibTargetSamples + " 次", 'warning');
     return;
   }
-
-  autoCalibrationInProgress = true;
-  autoCalibrationMeasuring = true;
-  document.getElementById("calibStep1").style.display = "none";
-  document.getElementById("calibStep2").style.display = "block";
-  document.getElementById("calibStep3").style.display = "none";
-  calibMaxNoise = 0;
-  calibLiveMaxNoise = 0;
-
-  // 更新校准步骤中的飞机大小信息
-  updateCalibDroneSizeInfo();
-
-  console.log("开始自动校准...");
-  const startAutoCalibBtn = document.getElementById("startAutoCalibBtn");
-  if (startAutoCalibBtn) startAutoCalibBtn.disabled = true;
-  // update calib control states
-  if (typeof setCalibButtonsState === 'function') setCalibButtonsState('measuring');
-
-  // 开始测量底噪
-  fetch(esp32BaseUrl + "/calibration/noise/start", { method: "POST" })
-    .then(r => r.json())
-    .then(data => {
-      console.log("开始测量底噪");
-      // Poll current RSSI to show progress
-      calibPollInterval = setInterval(() => {
-        document.getElementById("calibNoiseVal").innerText = rssiValue;
-        calibLiveMaxNoise = Math.max(calibLiveMaxNoise, rssiValue);
-        const { recEnter, recExit } = computeRecommendedEnterExit(calibLiveMaxNoise);
-        applyEnterExitToUi(recEnter, recExit);
-
-        const resNoiseElement = document.getElementById("resNoise");
-        const recEnterElement = document.getElementById("recEnter");
-        const recExitElement = document.getElementById("recExit");
-        if (resNoiseElement) resNoiseElement.innerText = calibLiveMaxNoise;
-        if (recEnterElement) {
-          recEnterElement.innerText = recEnter;
-          recEnterElement.dataset.val = recEnter;
-        }
-        if (recExitElement) {
-          recExitElement.innerText = recExit;
-          recExitElement.dataset.val = recExit;
-        }
-      }, 100);
-
-      // 等待5秒后自动停止测量底噪
-      if (autoCalibrationStopTimeout) window.clearTimeout(autoCalibrationStopTimeout);
-      autoCalibrationStopTimeout = window.setTimeout(() => {
-        window.stopAutoCalibration();
-      }, 5000);
-    })
-    .catch(error => {
-      console.error("开始测量底噪失败:", error);
-      pushNotice("开始测量底噪失败，请检查设备连接", "error", 5000);
-      resetCalib();
-      autoCalibrationInProgress = false;
-      autoCalibrationMeasuring = false;
-      const startAutoCalibBtn = document.getElementById("startAutoCalibBtn");
-      if (startAutoCalibBtn) startAutoCalibBtn.disabled = false;
-    });
-}
-
-window.stopAutoCalibration = function () {
-  if (!autoCalibrationMeasuring) return;
-  autoCalibrationMeasuring = false;
   clearInterval(calibPollInterval);
-  if (autoCalibrationStopTimeout) {
-    window.clearTimeout(autoCalibrationStopTimeout);
-    autoCalibrationStopTimeout = null;
-  }
+  fetch(esp32BaseUrl + "/calibration/crossing/stop", { method: "POST" })
+    .then((r) => r.json())
+    .then((data) => {
+      calibMaxPeak = Number.isFinite(data.maxPeak) ? data.maxPeak : calibMaxPeak;
+      calibMaxNoise = Number.isFinite(data.maxNoise) ? data.maxNoise : calibMaxNoise;
 
-  // 停止测量底噪
-  fetch(esp32BaseUrl + "/calibration/noise/stop", { method: "POST" })
-    .then(r => r.json())
-    .then(data => {
-      calibMaxNoise = data.maxNoise;
-      console.log("底噪测量完成，maxNoise:", calibMaxNoise);
+      const rec = {
+        enter: Number.isFinite(data.recEnter) ? data.recEnter : computeRecommendedEnterExit(calibMaxNoise, calibMaxPeak, getSelectedDroneSize()).enter,
+        exit: Number.isFinite(data.recExit) ? data.recExit : computeRecommendedEnterExit(calibMaxNoise, calibMaxPeak, getSelectedDroneSize()).exit,
+      };
 
-      const { recEnter, recExit } = computeRecommendedEnterExit(calibMaxNoise);
+      // 更新滑块值
+      updateSliderValues(rec.enter, rec.exit);
+      
+      // 保存校准后的阈值到设备
+      saveConfig()
+        .then(() => {
+          console.log("校准阈值已保存");
+          showToast("校准成功，阈值已保存", "success");
+        })
+        .catch((error) => {
+          console.error("保存校准阈值失败:", error);
+          showToast("校准成功，但保存阈值失败", "warning");
+        });
 
-      // 显示校准结果和飞机大小信息
-      const resNoiseElement = document.getElementById("resNoise");
-      const recEnterElement = document.getElementById("recEnter");
-      const recExitElement = document.getElementById("recExit");
-      if (resNoiseElement) resNoiseElement.innerText = calibMaxNoise;
-      if (recEnterElement) recEnterElement.innerText = recEnter;
-      if (recExitElement) recExitElement.innerText = recExit;
-
-      // 显示飞机大小和计时门直径信息
-      const calibResultInfoElement = document.getElementById("calibResultInfo");
-      if (calibResultInfoElement) {
-        const droneSize = parseInt(droneSizeSelect.value);
-        const sizeText = droneSize === 1 ? "大飞机 (4米计时门)" : "小飞机 (2米计时门)";
-        calibResultInfoElement.innerHTML = `
-          <p>当前设置: ${sizeText}</p>
-          <p>底噪: ${calibMaxNoise}</p>
-          <p>推荐进入阈值: ${recEnter}</p>
-          <p>推荐退出阈值: ${recExit}</p>
-          <p style="color: #ffa500;">注意：此校准仅基于环境底噪，建议在实际飞行中微调阈值</p>
-        `;
+      // 添加元素存在性检查，避免在某些页面中因元素不存在而导致错误
+      const resNoiseEl = document.getElementById("resNoise");
+      const resPeakEl = document.getElementById("resPeak");
+      const resDeltaEl = document.getElementById("resDelta");
+      const resMinDeltaEl = document.getElementById("resMinDelta");
+      const recEnterEl = document.getElementById("recEnter");
+      const recExitEl = document.getElementById("recExit");
+      const calibStep4El = document.getElementById("calibStep4");
+      const calibStep5El = document.getElementById("calibStep5");
+      
+      if (resNoiseEl) resNoiseEl.innerText = calibMaxNoise;
+      if (resPeakEl) resPeakEl.innerText = calibMaxPeak;
+      
+      const delta = Number.isFinite(data.delta) ? data.delta : calibMaxPeak - calibMaxNoise;
+      const minDelta = Number.isFinite(data.minDelta) ? data.minDelta : computeRecommendedEnterExit(calibMaxNoise, calibMaxPeak, getSelectedDroneSize()).minDelta;
+      
+      if (resDeltaEl) resDeltaEl.innerText = delta;
+      if (resMinDeltaEl) resMinDeltaEl.innerText = minDelta;
+      
+      if (recEnterEl) {
+        recEnterEl.innerText = rec.enter;
+        recEnterEl.dataset.val = rec.enter;
+      }
+      if (recExitEl) {
+        recExitEl.innerText = rec.exit;
+        recExitEl.dataset.val = rec.exit;
       }
 
-      // Store for apply
-      if (recEnterElement) recEnterElement.dataset.val = recEnter;
-      if (recExitElement) recExitElement.dataset.val = recExit;
+      if (data.ok === false || data.snrOk === false) {
+        showToast("校准信号与底噪差距偏小（delta=" + delta + "，要求≥" + minDelta + "），建议调整门位置/天线或重新校准", 'warning');
+      }
 
-      document.getElementById("calibStep2").style.display = "none";
-      document.getElementById("calibStep3").style.display = "block";
-      pushNotice("底噪测量完成，可直接点击“应用并保存”", "success", 3500);
-      autoCalibrationInProgress = false;
-      const startAutoCalibBtn = document.getElementById("startAutoCalibBtn");
-      if (startAutoCalibBtn) startAutoCalibBtn.disabled = false;
-      if (typeof setCalibButtonsState === 'function') setCalibButtonsState('done');
-    })
-    .catch(error => {
-      console.error("停止测量底噪失败:", error);
-      pushNotice("测量底噪失败，请重试", "error", 5000);
-      resetCalib();
-      autoCalibrationInProgress = false;
-      const startAutoCalibBtn = document.getElementById("startAutoCalibBtn");
-      if (startAutoCalibBtn) startAutoCalibBtn.disabled = false;
+      if (calibStep4El) calibStep4El.style.display = "none";
+      // 修改为显示步骤3（结果确认）
+      const calibStep3El = document.getElementById("calibStep3");
+      if (calibStep3El) calibStep3El.style.display = "block";
+      if (calibStep5El) calibStep5El.style.display = "none";
     });
-}
-
-window.applyAutoCalibration = function (enter, exit) {
-  enterRssiInput.value = enter;
-  updateEnterRssi(enterRssiInput, enter);
-
-  exitRssiInput.value = exit;
-  updateExitRssi(exitRssiInput, exit);
-
-  saveConfig().then(() => {
-    pushNotice("校准参数已应用并保存", "success", 3000);
-    resetCalib();
-    autoCalibrationInProgress = false;
-    autoCalibrationMeasuring = false;
-    const startAutoCalibBtn = document.getElementById("startAutoCalibBtn");
-    if (startAutoCalibBtn) startAutoCalibBtn.disabled = false;
-    if (typeof setCalibButtonsState === 'function') setCalibButtonsState('idle');
-  }).catch(error => {
-    console.error("保存配置失败:", error);
-    pushNotice("保存配置失败，请重试", "error", 5000);
-    autoCalibrationInProgress = false;
-    autoCalibrationMeasuring = false;
-    const startAutoCalibBtn = document.getElementById("startAutoCalibBtn");
-    if (startAutoCalibBtn) startAutoCalibBtn.disabled = false;
-    if (typeof setCalibButtonsState === 'function') setCalibButtonsState('idle');
-  });
-}
-
-function startCalibNoise() {
-  window.startAutoCalibration();
-}
-
-function stopCalibNoise() {
-  window.stopAutoCalibration();
 }
 
 function applyCalib() {
-  let enter = parseInt(document.getElementById("recEnter").dataset.val);
-  let exit = parseInt(document.getElementById("recExit").dataset.val);
-  window.applyAutoCalibration(enter, exit);
-}
+  const recEnterEl = document.getElementById("recEnter");
+  const recExitEl = document.getElementById("recExit");
+  
+  if (!recEnterEl || !recExitEl) {
+    console.warn("Calibration elements not found, cannot apply calibration");
+    return;
+  }
+  
+  let enter = parseInt(recEnterEl.dataset.val);
+  let exit = parseInt(recExitEl.dataset.val);
 
-function updateCalibDroneSizeInfo() {
-  const droneSize = parseInt(droneSizeSelect.value);
-  const sizeText = droneSize === 1 ? "大飞机 (4米计时门)" : "小飞机 (2米计时门)";
+  // 确保全局变量存在且已初始化
+  if (enterRssiInput && exitRssiInput) {
+    enterRssiInput.value = enter;
+    updateEnterRssi(enterRssiInput, enter);
 
-  // 更新所有校准步骤中的飞机大小信息
-  document.getElementById("currentDroneSize").innerText = sizeText;
-  document.getElementById("currentDroneSize2").innerText = sizeText;
+    exitRssiInput.value = exit;
+    updateExitRssi(exitRssiInput, exit);
+
+    saveConfig().then(() => {
+      showToast("校准参数已应用并保存！", 'success');
+      resetCalib();
+    });
+  }
 }
 
 function resetCalib() {
-  document.getElementById("calibStep1").style.display = "block";
-  document.getElementById("calibStep2").style.display = "none";
-  document.getElementById("calibStep3").style.display = "none";
+  // 添加元素存在性检查，避免在某些页面中因元素不存在而导致错误
+  const calibStep1El = document.getElementById("calibStep1");
+  const calibStep2El = document.getElementById("calibStep2");
+  const calibStep3El = document.getElementById("calibStep3");
+  const calibStep4El = document.getElementById("calibStep4");
+  const calibStep5El = document.getElementById("calibStep5");
+  
+  if (calibStep1El) calibStep1El.style.display = "block";
+  if (calibStep2El) calibStep2El.style.display = "none";
+  if (calibStep3El) calibStep3El.style.display = "none";
+  if (calibStep4El) calibStep4El.style.display = "none";
+  if (calibStep5El) calibStep5El.style.display = "none";
+  
   if (calibPollInterval) clearInterval(calibPollInterval);
-  calibLiveMaxNoise = 0;
-  autoCalibrationMeasuring = false;
-  if (autoCalibrationStopTimeout) {
-    window.clearTimeout(autoCalibrationStopTimeout);
-    autoCalibrationStopTimeout = null;
-  }
-  const startAutoCalibBtn = document.getElementById("startAutoCalibBtn");
-  if (startAutoCalibBtn) startAutoCalibBtn.disabled = false;
-
-  // 重置自动校准状态
-  autoCalibrationInProgress = false;
-
-  // 重置时更新飞机大小信息
-  updateCalibDroneSizeInfo();
-  // reset calib button states
-  if (typeof setCalibButtonsState === 'function') setCalibButtonsState('idle');
 }
 
-// Manage calibration control buttons' enabled state
-function setCalibButtonsState(state) {
-  const startBtn = document.getElementById('startAutoCalibBtn');
-  const applyBtn = document.getElementById('applyCalibBtn');
-  const cancelBtn = document.getElementById('cancelCalibBtn');
-
-  if (state === 'idle') {
-    if (startBtn) startBtn.disabled = false;
-    if (applyBtn) applyBtn.disabled = true;
-    if (cancelBtn) cancelBtn.disabled = true;
-  } else if (state === 'measuring') {
-    if (startBtn) startBtn.disabled = true;
-    if (applyBtn) applyBtn.disabled = true;
-    if (cancelBtn) cancelBtn.disabled = true;
-  } else if (state === 'done') {
-    if (startBtn) startBtn.disabled = true;
-    if (applyBtn) applyBtn.disabled = false;
-    if (cancelBtn) cancelBtn.disabled = false;
-  }
+// 更新当前设置显示
+function updateCurrentSettings() {
+  const currentBandEl = document.getElementById('currentBand');
+  const currentChannelEl = document.getElementById('currentChannel');
+  const currentFreqEl = document.getElementById('currentFreq');
+  const currentDroneSizeEl = document.getElementById('currentDroneSize');
+  const currentGateDiameterEl = document.getElementById('currentGateDiameter');
+  
+  if (currentBandEl) currentBandEl.innerText = bandSelect?.value || '-';
+  if (currentChannelEl) currentChannelEl.innerText = channelSelect?.value || '-';
+  if (currentFreqEl) currentFreqEl.innerText = frequency || '-';
+  
+  const droneSize = getSelectedDroneSize();
+  if (currentDroneSizeEl) currentDroneSizeEl.innerText = droneSize + ' 寸';
+  
+  const gateDiameter = getGateDiameterMm(droneSize) / 10;
+  if (currentGateDiameterEl) currentGateDiameterEl.innerText = gateDiameter;
 }
 
 // 创建错误显示区域
@@ -387,28 +675,6 @@ document.addEventListener('DOMContentLoaded', function () {
     errorDiv.style.maxWidth = '400px';
     document.body.appendChild(errorDiv);
   }
-
-  // 为自动校准按钮添加事件监听器
-  const startAutoCalibBtn = document.getElementById('startAutoCalibBtn');
-  if (startAutoCalibBtn) {
-    startAutoCalibBtn.addEventListener('click', function () {
-      console.log('自动校准按钮被点击');
-      window.startAutoCalibration();
-    });
-  }
-
-  // wire apply and cancel controls next to start
-  const applyCalibBtn = document.getElementById('applyCalibBtn');
-  const cancelCalibBtn = document.getElementById('cancelCalibBtn');
-  if (applyCalibBtn) applyCalibBtn.addEventListener('click', function () {
-    applyCalib();
-  });
-  if (cancelCalibBtn) cancelCalibBtn.addEventListener('click', function () {
-    resetCalib();
-  });
-
-  // initial calib button state
-  if (typeof setCalibButtonsState === 'function') setCalibButtonsState('idle');
 
   // 为OTA iframe添加错误处理
   const otaIframe = document.querySelector('#ota iframe');
@@ -485,20 +751,19 @@ window.onload = function (e) {
   // 检查URL参数中是否有ESP32 IP地址
   // const urlParams = new URLSearchParams(window.location.search);
   // const esp32Ip = urlParams.get('esp32ip');
-  esp32BaseUrl = window.location.origin;
   // if (esp32Ip) {
   //   esp32BaseUrl = `http://${esp32Ip}`;
   //   console.log(`使用ESP32 IP地址: ${esp32BaseUrl}`);
   // } else {
-  //   esp32BaseUrl = window.location.origin;
+    esp32BaseUrl = window.location.origin;
   //   console.log('未指定esp32ip，使用当前地址:', esp32BaseUrl);
   // }
 
   // 设置 OTA iframe 的地址为 esp32BaseUrl/update
-  // const otaIframeElem = document.getElementById('ota-iframe');
-  // if (otaIframeElem && esp32BaseUrl) {
-  //   otaIframeElem.src = esp32BaseUrl + "/update";
-  // }
+  const otaIframeElem = document.getElementById('ota-iframe');
+  if (otaIframeElem && esp32BaseUrl) {
+    otaIframeElem.src = esp32BaseUrl + "/update";
+  }
 
   fetch(esp32BaseUrl + "/config")
     .then((response) => response.json())
@@ -516,54 +781,41 @@ window.onload = function (e) {
       updateEnterRssi(enterRssiInput, enterRssiInput.value);
       exitRssiInput.value = config.exitRssi;
       updateExitRssi(exitRssiInput, exitRssiInput.value);
-      droneSizeSelect.value = config.droneSize || 0; // 默认小飞机
+      if (droneSizeSelect) {
+        const ds = parseInt(config.droneSize);
+        droneSizeSelect.value = ds === 2 ? "2" : "5";
+      }
+      if (calibSamplesInput) {
+        const cs = parseInt(config.calibSamples);
+        calibSamplesInput.value = String(Number.isFinite(cs) && cs >= 10 ? cs : 20);
+      }
       pilotNameInput.value = config.name;
       ssidInput.value = config.ssid;
       pwdInput.value = config.pwd;
-
-      // 保存原始WiFi配置
-      originalSsid = config.ssid;
-      originalPwd = config.pwd;
+      // store original wifi values to detect if they changed when saving
+      originalSsid = ssidInput.value || "";
+      originalPwd = pwdInput.value || "";
       populateFreqOutput();
       stopRaceButton.disabled = true;
       startRaceButton.disabled = false;
       clearInterval(timerInterval);
-      timer.innerHTML = "00:00:00.000";
+      timer.innerHTML = "00:00:00 s";
 
-      // console.log("config  esp32BaseUrl：="+esp32BaseUrl);
+      console.log("config  esp32BaseUrl：=" + esp32BaseUrl);
       clearLaps();
       createRssiChart();
-      createMiniRssiChart();
       initEventStream();
+      updateGateDiameterUi();
+      if (droneSizeSelect) {
+        droneSizeSelect.addEventListener("change", () => {
+          updateGateDiameterUi();
+        });
+      }
     })
     .catch(error => {
       console.error('无法连接到ESP32设备:', error);
+      showToast('无法连接到ESP32设备。请确保：\n1. 已连接到ESP32的热点（QiYun-FPV_XXXX）\n2. 或者通过URL参数指定IP地址：?esp32ip=33.0.0.1', 'error');
     });
-  // Ensure a default pilot and UI values for quick demo
-  if (!pilotNameInput.value || pilotNameInput.value.trim() === "") {
-    pilotNameInput.value = "QiYun";
-  }
-  // If frequency not set by config, default to 5658
-  if (!frequency || frequency === 0) {
-    frequency = 5658;
-    const freqEl = document.getElementById('freqOutput');
-    if (freqEl) freqEl.textContent = getBandChannel() + ' ' + frequency;
-    const lapRssi = document.getElementById('laprssifeq');
-    if (lapRssi) lapRssi.textContent = frequency;
-    const r1freq = document.getElementById('r1-frequency');
-    if (r1freq) r1freq.innerText = frequency;
-  }
-
-  // Ensure pilot row exists in table
-  try {
-    const pilotKey = `${pilotNameInput.value} - ${getBandChannel()}`;
-    if (!pilotData[pilotKey]) {
-      pilotData[pilotKey] = { laps: 0, times: [], total: 0, avg: 0, fastest: Infinity, consecutive: 0 };
-    }
-    updateRaceTable();
-  } catch (e) {
-    // ignore if DOM not ready
-  }
 };
 
 function addRssiPoint() {
@@ -578,29 +830,8 @@ function addRssiPoint() {
       rssiValue = parseInt(rssiBuffer.shift());
       if (crossing && rssiValue < exitRssi) {
         crossing = false;
-        // 更新过线状态显示
-        const crossingStatus = document.getElementById("crossingStatus");
-        if (crossingStatus) {
-          crossingStatus.innerText = "退出";
-        }
-        // const r1enter = document.getElementById('r1-enter');
-        // if (r1enter) r1enter.innerText = '退出';
       } else if (!crossing && rssiValue > enterRssi) {
         crossing = true;
-        // 更新过线状态显示
-        const crossingStatus = document.getElementById("crossingStatus");
-        if (crossingStatus) {
-          crossingStatus.innerText = "进入";
-        }
-        // const r1enter = document.getElementById('r1-enter');
-        // if (r1enter) r1enter.innerText = '进入';
-        // 检测到过线，添加语音播报
-        if (race.style.display != "none" && audioEnabled) {
-          const pilotName = pilotNameInput.value;
-          const channel = channelSelect.options[channelSelect.selectedIndex].text;
-          const pilotKey = `${pilotName} - ${channel}`;
-          queueSpeak(`<p>${pilotKey} 通过</p>`);
-        }
       }
       maxRssiValue = Math.max(maxRssiValue, rssiValue);
       minRssiValue = Math.min(minRssiValue, rssiValue);
@@ -620,20 +851,10 @@ function addRssiPoint() {
 
     var now = Date.now();
     rssiSeries.append(now, rssiValue);
-    r1Series.append(now, rssiValue);
     if (crossing) {
       rssiCrossingSeries.append(now, 256);
     } else {
       rssiCrossingSeries.append(now, -10);
-    }
-
-    // // 更新小图数值显示（race 页面）
-    // const r1ValEl = document.getElementById('r1-value');
-    // if (r1ValEl) r1ValEl.innerText = rssiValue;
-
-    // 当检测到进入（由 crossing 切换为 true）时，记录圈次逻辑
-    if (crossing) {
-      handleCrossingEnter();
     }
   } else {
     if (rssiChart && typeof rssiChart.stop === 'function') {
@@ -644,7 +865,7 @@ function addRssiPoint() {
   }
 }
 
-setInterval(addRssiPoint, 100);
+setInterval(addRssiPoint, 200);
 
 function createRssiChart() {
   rssiChart = new SmoothieChart({
@@ -672,51 +893,7 @@ function createRssiChart() {
     strokeStyle: "none",
     fillStyle: "hsla(136, 71%, 70%, 0.3)",
   });
-  rssiChart.streamTo(document.getElementById("rssiChart"), 100);
-}
-
-function createMiniRssiChart() {
-  try {
-    r1Chart = new SmoothieChart({
-      responsive: true,
-      millisPerPixel: 40,
-      grid: { strokeStyle: "rgba(255,255,255,0.12)", sharpLines: true, verticalSections: 0, borderVisible: false },
-      labels: { precision: 0 },
-      maxValue: 255,
-      minValue: 0,
-    });
-    r1Chart.addTimeSeries(r1Series, { lineWidth: 2, strokeStyle: "hsl(14,85%,55%)", fillStyle: "rgba(255,120,0,0.15)" });
-    r1Chart.streamTo(document.getElementById('r1Chart'), 100);
-  } catch (e) {
-    console.error('createMiniRssiChart error', e);
-  }
-}
-
-function handleCrossingEnter() {
-  // Only count when race started
-  if (!timerStart) return;
-  const nowSecs = parseTimerToSeconds(timer.innerHTML);
-  
-  if (lastEnterTime === null) {
-    // first enter -> mark as lap 0 and record it immediately (no minLap restriction)
-    lastEnterTime = nowSecs;
-    lapNo = 0;
-    // Record the initial lap time as lap 0 when race is running
-    if (startRaceButton.disabled) {
-      addLap(nowSecs.toFixed(3));
-    }
-    // show informational notice briefly
-    pushNotice('首次进入 (第0圈)', 'info', 1200);
-    return;
-  }
-  // subsequent enters -> compute delta to previous enter
-  const delta = nowSecs - lastEnterTime;
-  lastEnterTime = nowSecs;
-  lapNo = (lapNo === -1) ? 1 : lapNo + 1;
-  // 只在计时进行时才记录成绩
-  if (startRaceButton.disabled) {
-    addLap(delta.toFixed(3));
-  }
+  rssiChart.streamTo(document.getElementById("rssiChart"), 200);
 }
 
 function refreshNodes() {
@@ -760,8 +937,8 @@ function openTab(evt, tabName) {
   document.getElementById(tabName).style.display = "block";
   evt.currentTarget.className += " active";
 
-  // if event comes from calibration or race tab, signal to start sending RSSI events
-  if ((tabName === "calib" || tabName === "race") && !rssiSending) {
+  // if event comes from calibration tab, signal to start sending RSSI events
+  if (tabName === "calib" && !rssiSending) {
     fetch(esp32BaseUrl + "/timer/rssiStart", {
       method: "POST",
       headers: {
@@ -790,46 +967,25 @@ function openTab(evt, tabName) {
 
 function updateEnterRssi(obj, value) {
   enterRssi = parseInt(value);
-  if (enterRssiSpan) {
-    enterRssiSpan.textContent = enterRssi;
-  }
+  enterRssiSpan.textContent = enterRssi;
   if (enterRssi <= exitRssi) {
     exitRssi = Math.max(0, enterRssi - 1);
-    if (exitRssiInput) {
-      exitRssiInput.value = exitRssi;
-    }
-    if (exitRssiSpan) {
-      exitRssiSpan.textContent = exitRssi;
-    }
+    exitRssiInput.value = exitRssi;
+    exitRssiSpan.textContent = exitRssi;
   }
 }
 
 function updateExitRssi(obj, value) {
   exitRssi = parseInt(value);
-  if (exitRssiSpan) {
-    exitRssiSpan.textContent = exitRssi;
-  }
+  exitRssiSpan.textContent = exitRssi;
   if (exitRssi >= enterRssi) {
     enterRssi = Math.min(255, exitRssi + 1);
-    if (enterRssiInput) {
-      enterRssiInput.value = enterRssi;
-    }
-    if (enterRssiSpan) {
-      enterRssiSpan.textContent = enterRssi;
-    }
+    enterRssiInput.value = enterRssi;
+    enterRssiSpan.textContent = enterRssi;
   }
 }
 
 function saveConfig() {
-  const currentSsid = ssidInput.value;
-  const currentPwd = pwdInput.value;
-  const wifiChanged = currentSsid !== originalSsid || currentPwd !== originalPwd;
-
-  if (startRaceButton.disabled) {
-    stopRace();
-    clearLaps();
-  }
-
   return fetch(esp32BaseUrl + "/config", {
     method: "POST",
     headers: {
@@ -844,80 +1000,76 @@ function saveConfig() {
       anRate: parseInt(announcerRate * 10),
       enterRssi: enterRssi,
       exitRssi: exitRssi,
-      droneSize: parseInt(droneSizeSelect.value),
+      droneSize: getSelectedDroneSize(),
+      calibSamples: getCalibrationSamplesTarget(),
       name: pilotNameInput.value,
-      ssid: currentSsid,
-      pwd: currentPwd,
+      ssid: ssidInput.value,
+      pwd: pwdInput.value,
     }),
   })
     .then((response) => response.json())
     .then((response) => {
       console.log("/config:" + JSON.stringify(response));
-
-      // 更新原始WiFi配置
-      originalSsid = currentSsid;
-      originalPwd = currentPwd;
-
-      // const lap_rssi_feq = document.getElementById("laprssifeq");
-      // if (lap_rssi_feq) {
-      //   lap_rssi_feq.innerText = frequency;
-      // }
-
-
-      // 如果WiFi设置已更改，提示设备将自动重启
-      if (wifiChanged) {
-        pushNotice("配置已保存，设备将自动重启以应用新的WiFi设置。", "warn", 8000);
-
-        // 发送重启请求
-        fetch(esp32BaseUrl + "/save_and_restart", {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-          },
-        });
-      } else {
-        pushNotice("配置已保存", "success", 2500);
-      }
-
-
-    })
-    .catch((error) => {
-      console.error("Error saving config:", error);
-      pushNotice("保存配置失败，请重试", "error", 5000);
+      // Check if critical network config changed (simple heuristic or flag from server?)
+      // Since we don't know old values here easily without storing them, 
+      // we rely on user action. 
+      // But if user just clicks "Save Config", it only updates RAM/EEPROM but doesn't trigger restart/reconnect.
+      // We should probably prompt user if they want to restart if they changed WiFi.
+      return response;
     });
 }
 
-// 移除saveAndRestartConfig函数，不再需要
+function saveAndRestartConfig() {
+  // Always save first, then restart
+  // Note: /save_and_restart in C++ calls conf->write() then ESP.restart()
+  // But our saveConfig() also calls /config (which updates RAM)
+  // We should just call /save_and_restart directly if we want to save-to-eeprom AND restart.
+  // Actually /config endpoint just updates the Config object in RAM (and maybe writes to EEPROM if modified? No, Config::handleEeprom does that periodically or on demand).
+  // Let's check firmware: /config handler calls conf->fromJson(jsonObj). 
+  // /save_and_restart calls conf->write() then ESP.restart().
+  // So we MUST call saveConfig() (to send JSON to update RAM object) FIRST, 
+  // THEN call /save_and_restart (to commit to EEPROM and reboot).
+
+  saveConfig().then(() => {
+    // 仅当 SSID 或 密码 发生变化时才重启设备；否则只保存配置即可
+    const newSsid = ssidInput.value || "";
+    const newPwd = pwdInput.value || "";
+    if (newSsid !== originalSsid || newPwd !== originalPwd) {
+      fetch(esp32BaseUrl + "/save_and_restart", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+        },
+      })
+        .then((response) => response.json())
+        .then((response) => {
+          console.log("/save_and_restart:" + JSON.stringify(response));
+          showToast("WiFi 配置已改变，设备正在重启以应用新网络设置。请在几秒后重新连接WiFi。", 'info');
+        })
+        .catch((error) => {
+          console.error("Error saving config:", error);
+          showToast("重启指令发送失败，请检查连接。尝试再次保存。", 'error');
+        });
+    } else {
+      // No wifi change — config was posted and device will commit to EEPROM shortly
+      originalSsid = newSsid;
+      originalPwd = newPwd;
+      showToast("配置已保存（WiFi 未更改），无需重启。", 'success');
+    }
+  });
+}
 
 function populateFreqOutput() {
-  let band = bandSelect.options[bandSelect.selectedIndex].value;
-  let chan = channelSelect.options[channelSelect.selectedIndex].value;
-  frequency = freqLookup[bandSelect.selectedIndex][channelSelect.selectedIndex];
-  freqOutput.textContent = band + chan + " " + frequency;
-
-  lap_driver_name.textContent = band + chan;
-  laprssifeq.textContent = frequency;
-
-  lap_driver_name1.textContent = band + chan;
-  // update R1 frequency display if present
-  // const r1freq = document.getElementById('r1-frequency');
-  // if (r1freq) r1freq.innerText = frequency;
-
+  // 添加元素存在性检查，避免在某些页面（如OTA页面）中因元素不存在而导致错误
+  if (bandSelect && channelSelect && freqOutput) {
+    let band = bandSelect.options[bandSelect.selectedIndex].value;
+    let chan = channelSelect.options[channelSelect.selectedIndex].value;
+    frequency = freqLookup[bandSelect.selectedIndex][channelSelect.selectedIndex];
+    freqOutput.textContent = band + chan + " " + frequency;
+  }
 }
 
-function getFreqOutput() {
-  return freqOutput.textContent;
-}
-
-function getBandChannel() {
-  let band = bandSelect.options[bandSelect.selectedIndex].value;
-  let chan = channelSelect.options[channelSelect.selectedIndex].value;
-  return band + chan;
-}
-
-bcf.addEventListener("change", function handleChange(event) {
-  populateFreqOutput();
-});
+// 这个事件监听器将在initializeDOMElements函数中添加
 
 function updateAnnouncerRate(obj, value) {
   announcerRate = parseFloat(value);
@@ -949,243 +1101,93 @@ function beep(duration, frequency, type) {
   }, duration);
 }
 
-// 车手数据对象
-let pilotData = {
-  // "- - -": { laps: 0, times: [], total: 0, avg: 0, fastest: Infinity, consecutive: 0 }
-};
-
 function addLap(lapStr) {
-  const pilotName = pilotNameInput.value || "-";
-  const band = bandSelect.options[bandSelect.selectedIndex].text || "-";
-  const channel = channelSelect.options[channelSelect.selectedIndex].text || "-";
-  const pilotKey = `${pilotName} - ${band}${channel}`;
-
+  const pilotName = pilotNameInput.value;
+  var last2lapStr = "";
+  var last3lapStr = "";
   const newLap = parseFloat(lapStr);
-
-  // 确保车手数据存在
-  if (!pilotData[pilotKey]) {
-    pilotData[pilotKey] = { laps: 0, times: [], total: 0, avg: 0, fastest: Infinity, consecutive: 0 };
+  lapNo += 1;
+  const table = document.getElementById("lapTable");
+  const row = table.insertRow(lapNo + 1);
+  const cell1 = row.insertCell(0);
+  const cell2 = row.insertCell(1);
+  const cell3 = row.insertCell(2);
+  const cell4 = row.insertCell(3);
+  cell1.innerHTML = lapNo;
+  if (lapNo == 0) {
+    cell2.innerHTML = "开圈";
+  } else {
+    cell2.innerHTML = lapStr + " 秒";
+  }
+  if (lapTimes.length >= 2 && lapNo != 0) {
+    last2lapStr = (newLap + lapTimes[lapTimes.length - 1]).toFixed(2);
+    cell3.innerHTML = last2lapStr + " 秒";
+  }
+  if (lapTimes.length >= 3 && lapNo != 0) {
+    last3lapStr = (newLap + lapTimes[lapTimes.length - 2] + lapTimes[lapTimes.length - 1]).toFixed(2);
+    cell4.innerHTML = last3lapStr + " 秒";
   }
 
-  const pilot = pilotData[pilotKey];
-  pilot.laps += 1;
-  pilot.times.push(newLap);
-  pilot.total += newLap;
-  pilot.avg = (pilot.total / pilot.laps).toFixed(3);
-
-  // 更新最快圈速
-  if (newLap < pilot.fastest) {
-    pilot.fastest = newLap;
-  }
-
-  // 更新连续圈数
-  pilot.consecutive += 1;
-
-  // 更新统计表格
-  updateRaceTable();
-
-  // 添加到每圈成绩列表
-  addLapToUI(newLap);
-
-  // 语音播报
   switch (announcerSelect.options[announcerSelect.selectedIndex].value) {
     case "beep":
       beep(100, 330, "square");
       break;
     case "1lap":
-      const lapNoStr = pilotKey + " 第 " + pilot.laps + " 圈, ";
-      const text = "<p>" + lapNoStr + lapStr.replace(".", ",") + "秒</p>";
-      queueSpeak(text);
+      if (lapNo == 0) {
+        queueSpeak("<p>开圈<p>");
+      } else {
+        const lapNoStr = pilotName + " 第 " + lapNo + " 圈, ";
+        const text = "<p>" + lapNoStr + lapStr.replace(".", ",") + "</p>";
+        queueSpeak(text);
+      }
       break;
     case "2lap":
-      if (pilot.laps >= 2) {
-        const last2lap = (pilot.times[pilot.times.length - 1] + pilot.times[pilot.times.length - 2]).toFixed(3);
-        const text2 = "<p>" + pilotKey + " 两圈累计 " + last2lap.replace(".", ",") + "秒</p>";
+      if (lapNo == 0) {
+        queueSpeak("<p>Hole Shot<p>");
+      } else if (last2lapStr != "") {
+        const text2 = "<p>" + pilotName + " 两圈累计 " + last2lapStr.replace(".", ",") + "</p>";
         queueSpeak(text2);
       }
       break;
     case "3lap":
-      if (pilot.laps >= 3) {
-        const last3lap = (pilot.times[pilot.times.length - 1] + pilot.times[pilot.times.length - 2] + pilot.times[pilot.times.length - 3]).toFixed(3);
-        const text3 = "<p>" + pilotKey + " 三圈累计 " + last3lap.replace(".", ",") + "秒</p>";
+      if (lapNo == 0) {
+        queueSpeak("<p>Hole Shot<p>");
+      } else if (last3lapStr != "") {
+        const text3 = "<p>" + pilotName + " 三圈累计 " + last3lapStr.replace(".", ",") + "</p>";
         queueSpeak(text3);
       }
       break;
     default:
       break;
   }
-}
-
-// 添加圈数到UI
-function addLapToUI(lapTime) {
-  const lapTimesList = document.getElementById("lapTimesList");
-  if (!lapTimesList) return;
-
-  // 创建新的圈数项
-  const lapItem = document.createElement("div");
-  lapItem.className = "lap-time-item";
-
-  // 格式化时间为mm:ss.xxx格式
-  const minutes = Math.floor(lapTime / 60);
-  const seconds = Math.floor(lapTime % 60);
-  const milliseconds = Math.floor((lapTime * 1000) % 1000);
-  const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
-
-  lapItem.innerHTML = `
-    <div class="time">${formattedTime}</div>
-    <button class="remove-btn" onclick="removeLap(this)">×</button>
-  `;
-
-  // 添加到列表末尾
-  lapTimesList.appendChild(lapItem);
-
-  // 自动滚动到新添加的圈数（平滑滚动）
-  try {
-    lapItem.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  } catch (e) {
-    // fallback: set scrollTop
-    lapTimesList.scrollTop = lapTimesList.scrollHeight;
-  }
-}
-
-// 手动添加圈数
-function addManualLap() {
-  // 这里可以根据实际情况获取当前圈速，这里简单使用模拟值
-  if (startRaceButton.disabled) {
-    const secs = parseTimerToSeconds(timer.innerHTML);
-    if (!isNaN(secs)) {
-      addLap(secs.toFixed(3));
-    }
-  }
-}
-
-// parse timer text like HH:MM:SS.mmm or MM:SS.mmm to seconds (float)
-function parseTimerToSeconds(text) {
-  if (!text || typeof text !== 'string') return NaN;
-  // remove any trailing non-digit characters
-  text = text.trim();
-  // expected formats: HH:MM:SS.mmm or MM:SS.mmm
-  const parts = text.split(':');
-  if (parts.length === 3) {
-    const h = parseInt(parts[0], 10) || 0;
-    const m = parseInt(parts[1], 10) || 0;
-    const s = parseFloat(parts[2]) || 0;
-    return h * 3600 + m * 60 + s;
-  } else if (parts.length === 2) {
-    const m = parseInt(parts[0], 10) || 0;
-    const s = parseFloat(parts[1]) || 0;
-    return m * 60 + s;
-  }
-  // fallback: try parseFloat
-  const f = parseFloat(text);
-  return isNaN(f) ? NaN : f;
-}
-// 移除单个圈数
-function removeLap(btn) {
-  const lapItem = btn.parentElement;
-  const lapTimesList = document.getElementById("lapTimesList");
-  if (!lapItem || !lapTimesList) return;
-
-  // 从DOM中移除
-  lapTimesList.removeChild(lapItem);
-
-  // 这里应该更新pilotData数据，由于时间格式不同，这里简化处理
-  // 在实际应用中，需要解析时间并从pilotData中移除对应数据
-}
-
-// 清除所有圈数
-function clearLaps() {
-  const pilotName = pilotNameInput.value || "-";
-  const band = bandSelect.options[bandSelect.selectedIndex].text || "-";
-  const channel = channelSelect.options[channelSelect.selectedIndex].text || "-";
-  const pilotKey = `${pilotName} - ${band}${channel}`;
-  // 重置车手数据
-  if (!pilotData[pilotKey]) {
-    pilotData[pilotKey] = { laps: 0, times: [], total: 0, avg: 0, fastest: Infinity, consecutive: 0 };
-  }
-
-  // 更新统计表格
-  updateRaceTable();
-
-  // 清空每圈成绩列表
-  const lapTimesList = document.getElementById("lapTimesList");
-  if (lapTimesList) {
-    lapTimesList.innerHTML = "";
-  }
-
-  // 重置圈数变量
-  lapNo = -1;
-  lapTimes = [];
-  lastEnterTime = null;
-}
-
-// 清空所有比赛结果（包括所有飞手数据）
-function clearAllResults() {
-  pilotData = {};
-  const lapTimesList = document.getElementById("lapTimesList");
-  if (lapTimesList) lapTimesList.innerHTML = "";
-  lapNo = -1;
-  lapTimes = [];
-  lastEnterTime = null;
-  updateRaceTable();
-}
-
-function updateRaceTable() {
-  const table = document.getElementById("lapTable");
-  const tbody = table.querySelector("tbody");
-
-  // 清空表格内容（保留表头）
-  while (tbody.firstChild) {
-    tbody.removeChild(tbody.firstChild);
-  }
-
-  // 仅显示当前选中的飞手（根据输入的姓名和频段/频道）
-  const pilotName = pilotNameInput.value || "-";
-  const bandchan = getBandChannel();
-  const currentKey = `${pilotName} - ${bandchan}`;
-
-  let pilot = pilotData[currentKey];
-  // 如果没有当前飞手的数据，显示一行默认空数据
-  if (!pilot) {
-    pilot = { laps: 0, times: [], total: 0, avg: 0, fastest: Infinity, consecutive: 0 };
-  }
-
-  const row = tbody.insertRow();
-  const cell1 = row.insertCell(0);
-  const cell2 = row.insertCell(1);
-  const cell3 = row.insertCell(2);
-  const cell4 = row.insertCell(3);
-  const cell5 = row.insertCell(4);
-  const cell6 = row.insertCell(5);
-
-  cell1.innerHTML = pilotName;
-  cell2.innerHTML = pilot.laps;
-  cell3.innerHTML = pilot.total > 0 ? pilot.total.toFixed(3) + " 秒" : "-";
-  cell4.innerHTML = pilot.avg > 0 ? pilot.avg + " 秒" : "-";
-  if (pilot.fastest !== Infinity) {
-    cell5.innerHTML = pilot.fastest.toFixed(3) + " 秒";
-    cell5.classList.add("fastest-lap");
-  } else {
-    cell5.innerHTML = "-";
-  }
-  cell6.innerHTML = pilot.consecutive;
+  lapTimes.push(newLap);
 }
 
 function startTimer() {
-  // Use real elapsed time based on Date.now()
-  timerStart = Date.now();
+  var millis = 0;
+  var seconds = 0;
+  var minutes = 0;
   timerInterval = setInterval(function () {
-    var elapsed = Date.now() - timerStart;
-    var ms = Math.floor(elapsed % 1000);
-    var seconds = Math.floor((elapsed / 1000) % 60);
-    var minutes = Math.floor((elapsed / 60000) % 60);
-    var hours = Math.floor(elapsed / 3600000);
-    var h = hours < 10 ? "0" + hours : hours;
-    var m = minutes < 10 ? "0" + minutes : minutes;
-    var s = seconds < 10 ? "0" + seconds : seconds;
-    var msStr = ms.toString().padStart(3, "0");
-    timer.innerHTML = `${h}:${m}:${s}.${msStr}`;
-  }, 50);
+    millis += 1;
+
+    if (millis == 100) {
+      millis = 0;
+      seconds++;
+
+      if (seconds == 60) {
+        seconds = 0;
+        minutes++;
+
+        if (minutes == 60) {
+          minutes = 0;
+        }
+      }
+    }
+    let m = minutes < 10 ? "0" + minutes : minutes;
+    let s = seconds < 10 ? "0" + seconds : seconds;
+    let ms = millis < 10 ? "0" + millis : millis;
+    timer.innerHTML = `${m}:${s}:${ms} s`;
+  }, 10);
 
   fetch(esp32BaseUrl + "/timer/start", {
     method: "POST",
@@ -1202,8 +1204,6 @@ function queueSpeak(obj) {
     return;
   }
   speakObjsQueue.push(obj);
-
-  enableAudioLoop();
 }
 
 async function enableAudioLoop() {
@@ -1229,9 +1229,7 @@ function generateAudio() {
   }
 
   const pilotName = pilotNameInput.value;
-  const channel = channelSelect.options[channelSelect.selectedIndex].text;
-  const pilotKey = `${pilotName} - ${channel}`;
-  queueSpeak('<div>测试语音：车手 ' + pilotKey + '</div>');
+  queueSpeak('<div>测试语音：车手 ' + pilotName + '</div>');
   for (let i = 1; i <= 3; i++) {
     queueSpeak('<div>' + i + '</div>')
   }
@@ -1244,8 +1242,6 @@ function doSpeak(obj) {
 async function startRace() {
   //stopRace();
   startRaceButton.disabled = true;
-  clearLaps();
-  lastEnterTime = null;
   queueSpeak('<p>比赛即将开始</p>');
   await new Promise((r) => setTimeout(r, 2000));
   beep(1, 1, "square"); // needed for some reason to make sure we fire the first beep
@@ -1261,9 +1257,7 @@ async function startRace() {
 function stopRace() {
   queueSpeak('<p>比赛已结束</p>');
   clearInterval(timerInterval);
-  timerStart = null;
-  timer.innerHTML = "00:00:00.000";
-  lastEnterTime = null;
+  timer.innerHTML = "00:00:00 秒";
 
   fetch(esp32BaseUrl + "/timer/stop", {
     method: "POST",
@@ -1278,17 +1272,15 @@ function stopRace() {
   startRaceButton.disabled = false;
 }
 
-function confirmClear() {
-  // 确认清空所有成绩
-  const ok = confirm("确认清空所有成绩与圈数？此操作不可撤销。");
-  if (ok) {
-    stopRace();
-    clearAllResults();
-    pushNotice("所有成绩已清空", "success", 2000);
+function clearLaps() {
+  var tableHeaderRowCount = 1;
+  var rowCount = lapTable.rows.length;
+  for (var i = tableHeaderRowCount; i < rowCount; i++) {
+    lapTable.deleteRow(tableHeaderRowCount);
   }
+  lapNo = -1;
+  lapTimes = [];
 }
-
-
 
 function initEventStream() {
   console.log("events  esp32BaseUrl：=" + esp32BaseUrl);
@@ -1330,7 +1322,7 @@ function initEventStream() {
   source.addEventListener(
     "lap",
     function (e) {
-      var lap = (Number(e.data) / 1000).toFixed(3);
+      var lap = (parseFloat(e.data) / 1000).toFixed(2);
       addLap(lap);
       console.log("lap raw:", e.data, " formatted:", lap);
     },

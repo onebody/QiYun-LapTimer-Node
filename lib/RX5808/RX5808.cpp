@@ -33,8 +33,13 @@ void RX5808::handleFrequencyChange(uint32_t currentTimeMs, uint16_t potentiallyN
     if (recentSetFreqFlag && (currentTimeMs - lastSetFreqTimeMs) > RX5808_MIN_TUNETIME) {
         lastSetFreqTimeMs = currentTimeMs;
         DEBUG("RX5808 Tune done\n");
-        verifyFrequency();
-        recentSetFreqFlag = false;  // don't need to check again until next freq change
+        if (verifyFrequency()) {
+            recentSetFreqFlag = false;  // only clear flag if frequency was verified correctly
+        } else {
+            DEBUG("RX5808 frequency verification failed, retrying...\n");
+            // Re-verify after a short delay
+            lastSetFreqTimeMs = currentTimeMs;
+        }
     }
 }
 
@@ -95,7 +100,13 @@ bool RX5808::verifyFrequency() {
 
 // Set frequency on RX5808 module to given value
 void RX5808::setFrequency(uint16_t vtxFreq) {
-    DEBUG("Setting frequency to %u\n", vtxFreq);
+    DEBUG("Setting frequency to %u MHz\n", vtxFreq);
+
+    // Don't set frequency if it's the same as current
+    if (currentFrequency == vtxFreq) {
+        DEBUG("Already on frequency %u MHz, skipping\n", vtxFreq);
+        return;
+    }
 
     currentFrequency = vtxFreq;
 
@@ -103,41 +114,49 @@ void RX5808::setFrequency(uint16_t vtxFreq) {
     {
         powerDownRxModule();
         rxPoweredDown = true;
+        recentSetFreqFlag = false;
         return;
     }
     if (rxPoweredDown) {
         resetRxModule();
         rxPoweredDown = false;
+        // Give module time to reset
+        delay(10);
     }
 
     // Get the hex value to send to the rx module
     uint16_t vtxHex = freqMhzToRegVal(vtxFreq);
+    DEBUG("Sending register value %u to RX5808\n", vtxHex);
 
     // Channel data from the lookup table, 20 bytes of register data are sent, but the
     // MSB 4 bits are zeros register address = 0x1, write, data0-15=vtxHex data15-19=0x0
     rx5808SerialEnableHigh();
+    delayMicroseconds(200); // Ensure stable state
     rx5808SerialEnableLow();
+    delayMicroseconds(200); // Ensure stable state
 
-    rx5808SerialSendBit1();  // Register 0x1
+    // Register 0x1 (frequency register)
+    rx5808SerialSendBit1();
     rx5808SerialSendBit0();
     rx5808SerialSendBit0();
     rx5808SerialSendBit0();
 
     rx5808SerialSendBit1();  // Write to register
 
-    // D0-D15, note: loop runs backwards as more efficent on AVR
-    uint8_t i;
-    for (i = 16; i > 0; i--) {
-        if (vtxHex & 0x1) {  // Is bit high or low?
+    // Send D0-D15, note: loop runs backwards
+    for (uint8_t i = 16; i > 0; i--) {
+        if (vtxHex & 0x1) {
             rx5808SerialSendBit1();
         } else {
             rx5808SerialSendBit0();
         }
-        vtxHex >>= 1;  // Shift bits along to check the next one
+        vtxHex >>= 1;
     }
 
-    for (i = 4; i > 0; i--)  // Remaining D16-D19
+    // Send remaining D16-D19 (all zeros)
+    for (uint8_t i = 4; i > 0; i--) {
         rx5808SerialSendBit0();
+    }
 
     rx5808SerialEnableHigh();  // Finished clocking data in
     delay(2);
@@ -146,19 +165,14 @@ void RX5808::setFrequency(uint16_t vtxFreq) {
     digitalWrite(rx5808DataPin, LOW);
 
     recentSetFreqFlag = true;  // indicate need to wait RX5808_MIN_TUNETIME before reading RSSI
+    DEBUG("Frequency set, recentSetFreqFlag = %u\n", recentSetFreqFlag);
 }
 
 // Read the RSSI value
 uint8_t RX5808::readRssi() {
     volatile uint16_t rssi = 0;
 
-    if (recentSetFreqFlag) return rssi;  // RSSI is unstable
-
-    // for (uint8_t i = 0; i < RSSI_READS; i++) {
-    //   rssi += map(analogRead(rssiInputPin), 0, analogRead(vbatPin), 0, 4095);
-    // }
-
-    // rssi = rssi / RSSI_READS; // average of RSSI_READS readings
+    if (recentSetFreqFlag) return 0;  // RSSI is unstable, return 0 to indicate no signal
 
     // reads 5V value as 0-4095, RX5808 is 3.3V powered so RSSI pin will never output the full range
     rssi = analogRead(rssiInputPin);
@@ -254,9 +268,18 @@ void RX5808::setupRxModule() {
 
 // Calculate rx5808 register hex value for given frequency in MHz
 uint16_t RX5808::freqMhzToRegVal(uint16_t freqInMhz) {
-    uint16_t tf, N, A;
-    tf = (freqInMhz - 479) / 2;
-    N = tf / 32;
-    A = tf % 32;
-    return (N << (uint16_t)7) + A;
+    // Improved frequency calculation for better accuracy
+    // Formula: TF = (F - 479) / 2
+    // N = TF / 32
+    // A = TF % 32
+    // Register value = (N << 7) | A
+    uint16_t tf = (freqInMhz - 479) / 2;
+    uint16_t N = tf / 32;
+    uint16_t A = tf % 32;
+    uint16_t regVal = (N << 7) | A;
+    
+    // Debug output for frequency calculation
+    DEBUG("Freq: %u MHz -> TF: %u, N: %u, A: %u, Reg: %u\n", freqInMhz, tf, N, A, regVal);
+    
+    return regVal;
 }

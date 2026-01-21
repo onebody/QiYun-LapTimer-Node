@@ -7,6 +7,7 @@
 #define WIFI_CONNECTION_TIMEOUT_MS 30000
 #define WIFI_RECONNECT_TIMEOUT_MS 500
 #define WEB_RSSI_SEND_TIMEOUT_MS 200
+#define RESTART_DELAY_MS 1000
 
 class Webserver {
    public:
@@ -28,6 +29,8 @@ class Webserver {
     wl_status_t lastStatus = WL_IDLE_STATUS;
     volatile wifi_mode_t changeMode = WIFI_OFF;
     volatile uint32_t changeTimeMs = 0;
+    volatile bool restartRequested = false;
+    volatile uint32_t restartRequestTimeMs = 0;
     bool servicesStarted = false;
     bool wifiConnected = false;
 

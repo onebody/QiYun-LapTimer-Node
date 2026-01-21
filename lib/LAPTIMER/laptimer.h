@@ -27,6 +27,10 @@ class LapTimer {
     uint8_t stopCalibrationNoise();
     void startCalibrationCrossing();
     uint8_t stopCalibrationCrossing();
+    uint8_t getCalibrationMaxNoise();
+    uint8_t getCalibrationMaxPeak();
+    uint16_t getCalibrationNoiseSamples();
+    uint16_t getCalibrationCrossingSamples();
 
    private:
     laptimer_state_e state = STOPPED;
@@ -35,14 +39,14 @@ class LapTimer {
     Buzzer *buz;
     Led *led;
     KalmanFilter filter;
-    uint32_t startTimeMs = 0;
+    uint32_t startTimeMs;
     uint8_t lapCount;
     uint8_t rssiCount;
     uint32_t lapTimes[LAPTIMER_LAP_HISTORY];
     uint8_t rssi[LAPTIMER_RSSI_HISTORY];
 
-    uint8_t rssiPeak = 0;
-    uint32_t rssiPeakTimeMs = 0;
+    uint8_t rssiPeak;
+    uint32_t rssiPeakTimeMs;
 
     bool lapAvailable = false;
 
@@ -51,6 +55,8 @@ class LapTimer {
     bool isCalibratingCrossing = false;
     uint8_t calibrationMaxNoise = 0;
     uint8_t calibrationMaxPeak = 0;
+    uint16_t calibrationNoiseSamples = 0;
+    uint16_t calibrationCrossingSamples = 0;
 
     void lapPeakCapture(uint32_t currentTimeMs);
     bool lapPeakCaptured();

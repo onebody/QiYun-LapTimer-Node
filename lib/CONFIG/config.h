@@ -69,10 +69,6 @@
 
 #define EEPROM_CHECK_TIME_MS 1000
 
-// 飞机大小类型
-#define DRONE_SIZE_SMALL 0
-#define DRONE_SIZE_LARGE 1
-
 typedef struct {
     uint32_t version;
     uint16_t frequency;
@@ -82,7 +78,8 @@ typedef struct {
     uint8_t announcerRate;
     uint8_t enterRssi;
     uint8_t exitRssi;
-    uint8_t droneSize;  // 飞机大小类型：0-小飞机(2米)，1-大飞机(4米)
+    uint8_t droneSize;
+    uint16_t calibSamples;
     char pilotName[21];
     char ssid[33];
     char password[33];
@@ -105,7 +102,8 @@ class Config {
     uint8_t getEnterRssi();
     uint8_t getExitRssi();
     uint8_t getDroneSize();
-    uint8_t getGateDiameter();  // 获取计时门直径（米）
+    uint16_t getGateDiameterMm();
+    uint16_t getCalibrationSamples();
     char* getSsid();
     char* getPassword();
 
