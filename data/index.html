@@ -11,10 +11,10 @@
   <script src="articulate.min.js"></script>
   <script src="smoothie.js"></script>
 </head>
-<!-- 浮窗提示容器 -->
-<div id="toast-container" class="toast-container"></div>
 
 <body>
+<!-- 浮窗提示容器 -->
+<div id="toast-container" class="toast-container"></div>
   <header>
     <nav>
       <div class="logo">
@@ -134,15 +134,17 @@
         <div class="config-section">
           <h3>WiFi 设置</h3>
           <div class="section-content">
-            <div class="config-item">
-              <label for="ssid">WiFi 名称:</label>
-              <input type="text" id="ssid" maxlength="32" placeholder="输入WiFi名称" />
-            </div>
+            <form id="wifiForm">
+              <div class="config-item">
+                <label for="ssid">WiFi 名称:</label>
+                <input type="text" id="ssid" maxlength="32" placeholder="输入WiFi名称" />
+              </div>
 
-            <div class="config-item">
-              <label for="pwd">WiFi 密码:</label>
-              <input type="password" id="pwd" maxlength="32" placeholder="输入WiFi密码" />
-            </div>
+              <div class="config-item">
+                <label for="pwd">WiFi 密码:</label>
+                <input type="password" id="pwd" maxlength="32" placeholder="输入WiFi密码" />
+              </div>
+            </form>
           </div>
         </div>
       </div>
@@ -163,9 +165,9 @@
     <div id="race" class="tabcontent">
       <span id="timer">00:00:00 秒</span>
       <div class="racebuttons">
-        <button type="button" id="startRaceButton" onclick="startRace()">开始比赛</button>
-        <button type="button" id="stopRaceButton" onclick="stopRace()" disabled>停止比赛</button>
-        <button type="button" id="clearLapsButton" onclick="clearLaps()">清空成绩</button>
+        <button type="button" id="startRaceButton" onclick="startRace()">开始</button>
+        <button type="button" id="stopRaceButton" onclick="stopRace()" disabled>停止</button>
+        <button type="button" id="clearLapsButton" onclick="clearLaps()">清空</button>
       </div>
       <table id="lapTable">
         <tr>

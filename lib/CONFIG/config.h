@@ -18,11 +18,25 @@
 
 */
 
-//ESP23-C3
+//ESP32-C3
 #if defined(ESP32C3)
 
-#define PIN_LED 1
+#define PIN_LED 8    // 使用ESP32-C3板载LED（GPIO8）
 #define PIN_VBAT 0
+#define VBAT_SCALE 2
+#define VBAT_ADD 2
+#define PIN_RX5808_RSSI 3
+#define PIN_RX5808_DATA 6     //CH1
+#define PIN_RX5808_SELECT 7   //CH2
+#define PIN_RX5808_CLOCK 4    //CH3
+#define PIN_BUZZER 5
+#define BUZZER_INVERTED false
+
+//ESP32-S2
+#elif defined(ESP32S2)
+
+#define PIN_LED 13   // 使用ESP32-S2板载LED（GPIO13）
+#define PIN_VBAT 4
 #define VBAT_SCALE 2
 #define VBAT_ADD 2
 #define PIN_RX5808_RSSI 3
@@ -35,7 +49,7 @@
 //ESP32-S3
 #elif defined(ESP32S3)
 
-#define PIN_LED 2
+#define PIN_LED 48   // 使用ESP32-S3板载LED（GPIO48）
 #define PIN_VBAT 1
 #define VBAT_SCALE 2
 #define VBAT_ADD 2
@@ -46,10 +60,10 @@
 #define PIN_BUZZER 3
 #define BUZZER_INVERTED false
 
-//ESP32
+//ESP32 (WROOM/WROVER/DOIT等)
 #else
 
-#define PIN_LED 21
+#define PIN_LED 2    // 使用ESP32-WROOM/WROVER板载LED（GPIO2）
 #define PIN_VBAT 35
 #define VBAT_SCALE 2
 #define VBAT_ADD 2

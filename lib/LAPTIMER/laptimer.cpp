@@ -76,11 +76,10 @@ void LapTimer::handleLapTimerUpdate(uint32_t currentTimeMs) {
             }
             break;
         case RUNNING:
-            // Check if timer min has elapsed, start capturing peak
-            if ((currentTimeMs - startTimeMs) > conf->getMinLapMs()) {
-                lapPeakCapture(currentTimeMs);
-            }
-
+            // 无论是否超过最小圈时，都持续捕获RSSI值
+            lapPeakCapture(currentTimeMs);
+            
+            // 去除最小圈时限制，只要捕获到峰值就触发圈速计算
             if (lapPeakCaptured()) {
                 finishLap();
                 startLap();
@@ -94,7 +93,7 @@ void LapTimer::handleLapTimerUpdate(uint32_t currentTimeMs) {
 }
 
 void LapTimer::lapPeakCapture(uint32_t currentTimeMs) {
-    // Check if RSSI is on or post threshold, update RSSI peak
+    // 恢复严格的enterRssi阈值检查，避免误触发
     if (rssi[rssiCount] >= conf->getEnterRssi()) {
         // Check if RSSI is greater than the previous detected peak
         if (rssi[rssiCount] > rssiPeak) {
@@ -105,11 +104,33 @@ void LapTimer::lapPeakCapture(uint32_t currentTimeMs) {
 }
 
 bool LapTimer::lapPeakCaptured() {
-    // 检测到RSSI峰值时立即触发开圈，无需等待RSSI下降
-    // 这样可以确保飞机通过计时门时立即显示开圈时间
-    bool peakDetected = (rssi[rssiCount] < rssiPeak) && (rssiPeak >= conf->getEnterRssi());
+    // 获取计时门直径（毫米）
+    uint16_t gateDiameterMm = conf->getGateDiameterMm();
     
-    return peakDetected;
+    uint8_t minDelta;
+    bool rssiConditions;
+    
+    // 针对WAITING状态（第一次开圈）使用更灵敏的检测参数，减少延迟
+    // 针对RUNNING状态（后续圈速）保持严格的检测参数，避免误触发
+    if (state == WAITING) {
+        // 第一次开圈使用较低阈值，提高响应速度
+        minDelta = 4;
+        // 只要RSSI开始下降且有小变化，就触发第一次开圈
+        rssiConditions = (rssi[rssiCount] < rssiPeak);
+    } else {
+        // 后续圈速恢复严格的参数要求
+        minDelta = (gateDiameterMm == 1500) ? 10 : 6;
+        // 严格检查RSSI下降和变化量
+        rssiConditions = (rssi[rssiCount] < rssiPeak);
+    }
+    
+    bool deltaCondition = (rssiPeak - rssi[rssiCount]) >= minDelta;
+    
+    // 增加调试输出以帮助分析
+    DEBUG("lapPeakCaptured: state=%d, rssiCount=%d, rssi=%d, rssiPeak=%d, exitRssi=%d, minDelta=%d, rssiConditions=%d, deltaCondition=%d\n", 
+          state, rssiCount, rssi[rssiCount], rssiPeak, conf->getExitRssi(), minDelta, rssiConditions, deltaCondition);
+    
+    return rssiConditions && deltaCondition;
 }
 
 void LapTimer::lapPeakReset() {

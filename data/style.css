@@ -103,30 +103,37 @@ header {
   color: white;
   padding: 16px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 nav {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
+  width: 100%;
 }
 
 .logo {
   display: flex;
   align-items: center;
+  margin-bottom: 16px;
 }
 
-.logo h1 {
+.logo h2 {
   margin-left: 16px;
   font-size: 32px;
+  margin: 0 0 0 16px;
 }
 
 .nav-links {
   display: flex;
   list-style: none;
-  gap: 16px;
-  padding-top: 16px;
-  justify-content: space-around;
+  gap: 24px;
+  justify-content: center;
+  margin: 0;
+  width: 100%;
 }
 
 .nav-links a {
@@ -328,6 +335,7 @@ table th,
 table td {
   padding: 6px;
   border: 1px solid var(--border-color);
+  text-align: center;
 }
 
 table th {
@@ -773,6 +781,7 @@ footer a {
   table th,
   table td {
     padding: 8px 4px;
+    text-align: center;
   }
   
   .config-section {

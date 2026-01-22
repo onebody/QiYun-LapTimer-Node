@@ -28,7 +28,14 @@ static void parallelTask(void *pvArgs) {
 }
 
 static void initParallelTask() {
-    disableCore0WDT();
+    // 禁用看门狗，兼容不同的ESP32变体
+    #if defined(ESP32)
+        // 对于ESP32-WROOM/WROVER
+        disableCore0WDT();
+    #elif defined(ESP32C3) || defined(ESP32S3)
+        // 对于ESP32-C3和ESP32-S3
+        esp_task_wdt_delete(NULL);
+    #endif
     xTaskCreatePinnedToCore(parallelTask, "parallelTask", 3000, NULL, 0, &xTimerTask, 0);
 }
 
@@ -37,7 +44,13 @@ void setup() {
     config.init();
     rx.init();
     buzzer.init(PIN_BUZZER, BUZZER_INVERTED);
-    led.init(PIN_LED, false);
+    // 根据不同芯片型号设置板载LED的极性
+    #if defined(ESP32C3) || defined(ESP32S2) || defined(ESP32S3) || defined(ESP32)
+        // ESP32系列板载LED通常是低电平点亮（inverted=true）
+        led.init(PIN_LED, true);
+    #else
+        led.init(PIN_LED, false);
+    #endif
     timer.init(&config, &rx, &buzzer, &led);
     monitor.init(PIN_VBAT, VBAT_SCALE, VBAT_ADD, &buzzer, &led);
     ws.init(&config, &timer, &monitor, &buzzer, &led);
