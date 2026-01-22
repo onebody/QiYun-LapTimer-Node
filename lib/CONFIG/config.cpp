@@ -182,7 +182,7 @@ uint8_t Config::getDroneSize() {
 }
 
 uint16_t Config::getGateDiameterMm() {
-    return getDroneSize() == 2 ? 1500 : 3000;
+    return getDroneSize() == 2 ? 1000 : 2000;
 }
 
 uint16_t Config::getCalibrationSamples() {

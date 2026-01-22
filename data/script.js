@@ -123,7 +123,7 @@ function getSelectedDroneSize() {
 }
 
 function getGateDiameterMm(droneSize) {
-  return droneSize === 2 ? 1500 : 3000;
+  return droneSize === 2 ? 1000 : 2000;
 }
 
 function getCalibrationSamplesTarget() {
@@ -155,7 +155,7 @@ function getCalibrationTuning(droneSize) {
   const dropPercentage = dropPercentageEl ? parseFloat(dropPercentageEl.value) / 100 : 0.3;
   
   const diameterM = getGateDiameterMm(droneSize) / 1000;
-  const diameterRatio = diameterM / 3.0; // 归一化到标准3米直径
+  const diameterRatio = diameterM / 1.5; // 归一化到标准3米直径
   
   // 基于用户设置的百分比和计时门直径计算进入和退出比例
   // 计时门直径越小，要求进入和退出比例越高，以确保只有在门内才能检测到信号
@@ -777,6 +777,7 @@ window.onload = function (e) {
       announcerSelect.selectedIndex = config.anType;
       announcerRateInput.value = (parseFloat(config.anRate) / 10).toFixed(1);
       updateAnnouncerRate(announcerRateInput, announcerRateInput.value);
+      announcerRate = parseFloat(announcerRateInput.value); // 更新变量值
       enterRssiInput.value = config.enterRssi;
       updateEnterRssi(enterRssiInput, enterRssiInput.value);
       exitRssiInput.value = config.exitRssi;

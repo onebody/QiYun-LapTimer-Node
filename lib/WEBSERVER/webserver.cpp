@@ -556,6 +556,7 @@ Battery Voltage:\t%0.1fv";
         DEBUG("\n");
 #endif
         conf->fromJson(jsonObj);
+        conf->write(); // 立即将配置写入EEPROM
         request->send(200, "application/json", "{\"status\": \"OK\"}");
         led->on(200);
     });

@@ -705,47 +705,86 @@ footer a {
   .primary-btn, .secondary-btn {
     width: 100%;
   }
-}
-
-@media (max-width: 150px) {
+  
   nav {
-      flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 12px;
   }
 
   .nav-links {
-      margin-top: 16px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
   }
 
   .nav-links li {
-      margin: 8px 0;
+    margin: 0;
   }
-
+  
+  #bandChannelFreq {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
   .config-item {
-      flex-direction: column;
-      align-items: stretch;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
   }
 
   .config-item label {
-      flex: 0 0 auto;
-      margin-bottom: 8px;
+    min-width: 40%;
+    margin-bottom: 0;
   }
 
   .input-with-value {
-      flex-direction: column;
-      align-items: stretch;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
   }
 
   .input-with-value .val {
-      text-align: left;
-      margin-top: 8px;
+    text-align: right;
+    margin-bottom: 0;
+    width: auto;
   }
-
+  
+  .button-group {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .racebuttons {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
   table {
-      font-size: 14px;
+    font-size: 14px;
   }
 
   table th,
   table td {
-      padding: 8px;
+    padding: 8px 4px;
+  }
+  
+  .config-section {
+    padding: 16px;
+  }
+  
+  .logo h2 {
+    font-size: 24px;
+    margin-left: 12px;
+  }
+  
+  header {
+    padding: 12px;
   }
 }
