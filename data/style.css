@@ -158,17 +158,58 @@ main {
 .config-container {
   display: flex;
   flex-direction: column;
+  gap: 24px;
+}
+
+/* 配置区域分组样式 */
+.config-section {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--border-color);
+}
+
+.config-section h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  color: var(--primary-color-dark);
+  font-size: 18px;
+  font-weight: bold;
+  border-bottom: 2px solid var(--primary-color);
+  padding-bottom: 8px;
+}
+
+.section-content {
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 
+/* 射频设置区域特殊样式 */
 #bandChannelFreq {
   display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: 16px;
+  align-items: center;
+}
+
+#bandChannelFreq .config-item {
+  align-items: center;
 }
 
 #bandChannelFreq label {
-  min-width: 0px;
-  padding-right: 16px;
+  min-width: 80px;
+}
+
+.freq-display {
+  font-weight: bold;
+  color: var(--primary-color-dark);
+  font-size: 16px;
+  padding: 4px 8px;
+  background-color: rgba(124, 181, 236, 0.1);
+  border-radius: 4px;
 }
 
 .config-item {
@@ -212,19 +253,65 @@ main {
 
 button {
   margin: 12px 0;
-  padding: 8px 12px;
+  padding: 12px 20px;
   background-color: var(--primary-color);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
   font-size: 16px;
   font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 button:hover {
   background-color: var(--primary-color-dark);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+button:disabled {
+  background-color: #ccc;
+  color: #666;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+  opacity: 0.6;
+}
+
+/* 配置页面按钮区域样式 */
+.config-buttons {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
+.button-group.main-buttons {
+  margin-top: 8px;
+}
+
+.button-group.main-buttons button {
+  background-color: var(--success-color);
+  font-size: 18px;
+  padding: 14px 28px;
+}
+
+.button-group.main-buttons button:hover {
+  background-color: var(--success-color-dark);
 }
 
 .racebuttons {

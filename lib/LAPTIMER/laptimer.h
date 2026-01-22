@@ -32,6 +32,9 @@ class LapTimer {
     uint16_t getCalibrationNoiseSamples();
     uint16_t getCalibrationCrossingSamples();
 
+    // 新增：设置lap事件回调函数
+    void setLapEventHandler(void (*handler)(uint32_t lapTime));
+
    private:
     laptimer_state_e state = STOPPED;
     RX5808 *rx;
@@ -57,6 +60,9 @@ class LapTimer {
     uint8_t calibrationMaxPeak = 0;
     uint16_t calibrationNoiseSamples = 0;
     uint16_t calibrationCrossingSamples = 0;
+
+    // 新增：lap事件回调函数指针
+    void (*lapEventHandler)(uint32_t lapTime);
 
     void lapPeakCapture(uint32_t currentTimeMs);
     bool lapPeakCaptured();

@@ -24,6 +24,9 @@ static const char *wifi_ap_password = "12345678";
 static const char *wifi_ap_address = "33.0.0.1";
 String wifi_ap_ssid;
 
+// 新增：全局Webserver实例指针，用于静态回调函数中访问类方法
+static Webserver *gWebserverInstance = nullptr;
+
 static float clampf(float v, float lo, float hi) {
     if (v < lo) return lo;
     if (v > hi) return hi;
@@ -39,6 +42,12 @@ void Webserver::init(Config *config, LapTimer *lapTimer, BatteryMonitor *batMoni
     monitor = batMonitor;
     buz = buzzer;
     led = l;
+    
+    // 保存全局实例指针
+    gWebserverInstance = this;
+    
+    // 设置lap事件回调函数
+    timer->setLapEventHandler(lapEventHandler);
 
     wifi_ap_ssid = String(wifi_ap_ssid_prefix) + "_" + WiFi.macAddress().substring(WiFi.macAddress().length() - 6);
     wifi_ap_ssid.replace(":", "");
@@ -78,6 +87,13 @@ void Webserver::sendLaptimeEvent(uint32_t lapTime) {
     events.send(buf, "lap");
 }
 
+// 新增：lap事件处理函数，作为LapTimer的回调
+void Webserver::lapEventHandler(uint32_t lapTime) {
+    if (gWebserverInstance != nullptr) {
+        gWebserverInstance->sendLaptimeEvent(lapTime);
+    }
+}
+
 void Webserver::handleWebUpdate(uint32_t currentTimeMs) {
     // If a restart has been requested by the web handler, perform it from
     // the main loop/context to avoid doing a blocking delay or restart
@@ -88,10 +104,11 @@ void Webserver::handleWebUpdate(uint32_t currentTimeMs) {
         delay(50);
         ESP.restart();
     }
-
-    if (timer->isLapAvailable()) {
-        sendLaptimeEvent(timer->getLapTime());
-    }
+    
+    // 移除定期检查lapAvailable的逻辑，改为使用回调机制
+    // if (timer->isLapAvailable()) {
+    //     sendLaptimeEvent(timer->getLapTime());
+    // }
 
     if (sendRssi && ((currentTimeMs - rssiSentMs) > WEB_RSSI_SEND_TIMEOUT_MS)) {
         sendRssiEvent(timer->getRssi());

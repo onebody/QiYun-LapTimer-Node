@@ -16,6 +16,7 @@ void LapTimer::init(Config *config, RX5808 *rx5808, Buzzer *buzzer, Led *l) {
 
     stop();
     memset(rssi, 0, sizeof(rssi));
+    lapEventHandler = nullptr;  // 初始化回调函数指针为空
 }
 
 void LapTimer::start() {
@@ -104,19 +105,11 @@ void LapTimer::lapPeakCapture(uint32_t currentTimeMs) {
 }
 
 bool LapTimer::lapPeakCaptured() {
-    // 获取计时门直径（毫米）
-    uint16_t gateDiameterMm = conf->getGateDiameterMm();
+    // 检测到RSSI峰值时立即触发开圈，无需等待RSSI下降
+    // 这样可以确保飞机通过计时门时立即显示开圈时间
+    bool peakDetected = (rssi[rssiCount] < rssiPeak) && (rssiPeak >= conf->getEnterRssi());
     
-    // 基于计时门直径计算最小RSSI变化量（降低要求以提高检测灵敏度）
-    // 直径越小，需要的RSSI变化量越大，以确保信号来自门内
-    uint8_t minDelta = (gateDiameterMm == 1500) ? 25 : 15;
-    
-    // 检查当前RSSI是否低于峰值和退出阈值，并且RSSI变化量足够大
-    // 只有当RSSI变化量足够大时，才认为是有效的过门信号
-    bool rssiConditions = (rssi[rssiCount] < rssiPeak) && (rssi[rssiCount] < conf->getExitRssi());
-    bool deltaCondition = (rssiPeak - conf->getExitRssi()) >= minDelta;
-    
-    return rssiConditions && deltaCondition;
+    return peakDetected;
 }
 
 void LapTimer::lapPeakReset() {
@@ -137,6 +130,11 @@ void LapTimer::finishLap() {
     DEBUG("Lap finished, lap time = %u\n", lapTimes[lapCount]);
     lapCount = (lapCount + 1) % LAPTIMER_LAP_HISTORY;
     lapAvailable = true;
+    
+    // 立即触发lap事件回调，不再等待定期检查
+    if (lapEventHandler != nullptr) {
+        lapEventHandler(lapTimes[lapCount > 0 ? lapCount - 1 : LAPTIMER_LAP_HISTORY - 1]);
+    }
 }
 
 uint8_t LapTimer::getRssi() {
@@ -198,4 +196,8 @@ uint16_t LapTimer::getCalibrationNoiseSamples() {
 
 uint16_t LapTimer::getCalibrationCrossingSamples() {
     return calibrationCrossingSamples;
+}
+
+void LapTimer::setLapEventHandler(void (*handler)(uint32_t lapTime)) {
+    lapEventHandler = handler;
 }

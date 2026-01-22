@@ -18,6 +18,8 @@ class Webserver {
     void startServices();
     void sendRssiEvent(uint8_t rssi);
     void sendLaptimeEvent(uint32_t lapTime);
+    // 新增：lap事件处理函数
+    static void lapEventHandler(uint32_t lapTime);
 
     Config *conf;
     LapTimer *timer;

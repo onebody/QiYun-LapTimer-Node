@@ -1103,8 +1103,7 @@ function beep(duration, frequency, type) {
 
 function addLap(lapStr) {
   const pilotName = pilotNameInput.value;
-  var last2lapStr = "";
-  var last3lapStr = "";
+  var cumulativeTimeStr = "";
   const newLap = parseFloat(lapStr);
   lapNo += 1;
   const table = document.getElementById("lapTable");
@@ -1112,27 +1111,30 @@ function addLap(lapStr) {
   const cell1 = row.insertCell(0);
   const cell2 = row.insertCell(1);
   const cell3 = row.insertCell(2);
-  const cell4 = row.insertCell(3);
   cell1.innerHTML = lapNo;
   if (lapNo == 0) {
     cell2.innerHTML = "开圈";
   } else {
     cell2.innerHTML = lapStr + " 秒";
   }
-  if (lapTimes.length >= 2 && lapNo != 0) {
-    last2lapStr = (newLap + lapTimes[lapTimes.length - 1]).toFixed(2);
-    cell3.innerHTML = last2lapStr + " 秒";
-  }
-  if (lapTimes.length >= 3 && lapNo != 0) {
-    last3lapStr = (newLap + lapTimes[lapTimes.length - 2] + lapTimes[lapTimes.length - 1]).toFixed(2);
-    cell4.innerHTML = last3lapStr + " 秒";
+  
+  // 计算累计用时（从第1圈到当前圈的总时间）
+  if (lapNo != 0) {
+    // 计算总时间：lapTimes数组中所有已完成的圈数加上当前圈
+    let cumulativeTime = newLap;
+    for (let i = 0; i < lapTimes.length; i++) {
+      cumulativeTime += lapTimes[i];
+    }
+    
+    cumulativeTimeStr = cumulativeTime.toFixed(2);
+    cell3.innerHTML = "累计用时 " + cumulativeTimeStr + " 秒";
   }
 
-  switch (announcerSelect.options[announcerSelect.selectedIndex].value) {
-    case "beep":
+  switch (announcerSelect.selectedIndex) {
+    case 1:
       beep(100, 330, "square");
       break;
-    case "1lap":
+    case 2:
       if (lapNo == 0) {
         queueSpeak("<p>开圈<p>");
       } else {
@@ -1141,20 +1143,13 @@ function addLap(lapStr) {
         queueSpeak(text);
       }
       break;
-    case "2lap":
+    case 3:
       if (lapNo == 0) {
-        queueSpeak("<p>Hole Shot<p>");
-      } else if (last2lapStr != "") {
-        const text2 = "<p>" + pilotName + " 两圈累计 " + last2lapStr.replace(".", ",") + "</p>";
-        queueSpeak(text2);
-      }
-      break;
-    case "3lap":
-      if (lapNo == 0) {
-        queueSpeak("<p>Hole Shot<p>");
-      } else if (last3lapStr != "") {
-        const text3 = "<p>" + pilotName + " 三圈累计 " + last3lapStr.replace(".", ",") + "</p>";
-        queueSpeak(text3);
+        queueSpeak("<p>开圈<p>");
+      } else if (cumulativeTimeStr != "") {
+        // 播报从第1圈到当前圈的总时间
+        const text = "<p>" + pilotName + " 累计 " + cumulativeTimeStr.replace(".", ",") + "</p>";
+        queueSpeak(text);
       }
       break;
     default:
@@ -1281,6 +1276,14 @@ function clearLaps() {
   lapNo = -1;
   lapTimes = [];
 }
+
+// 确保clearLapsButton在页面加载时可用
+document.addEventListener('DOMContentLoaded', function() {
+  const clearLapsButton = document.getElementById('clearLapsButton');
+  if (clearLapsButton) {
+    clearLapsButton.disabled = false;
+  }
+});
 
 function initEventStream() {
   console.log("events  esp32BaseUrl：=" + esp32BaseUrl);

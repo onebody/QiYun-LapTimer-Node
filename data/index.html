@@ -33,96 +33,131 @@
   <main>
     <div id="config" class="tabcontent">
       <div class="config-container">
-        <div id="bandChannelFreq">
-          <div class="config-item">
-            <label for="bandSelect">频段:</label>
-            <select id="bandSelect">
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="E">E</option>
-              <option value="F">F</option>
-              <option value="R">R</option>
-              <option value="L">L</option>
-            </select>
-          </div>
+        <!-- 射频相关设置区域 -->
+        <div class="config-section">
+          <h3>射频设置</h3>
+          <div id="bandChannelFreq" class="section-content">
+            <div class="config-item">
+              <label for="bandSelect">频段:</label>
+              <select id="bandSelect">
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="E">E</option>
+                <option value="F">F</option>
+                <option value="R">R</option>
+                <option value="L">L</option>
+              </select>
+            </div>
 
-          <div class="config-item">
-            <label for="channelSelect">频道:</label>
-            <select id="channelSelect">
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-              <option value="6">6</option>
-              <option value="7">7</option>
-              <option value="8">8</option>
-            </select>
-          </div>
+            <div class="config-item">
+              <label for="channelSelect">频道:</label>
+              <select id="channelSelect">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+              </select>
+            </div>
 
-          <div class="config-item">
-            <span id="freqOutput"></span>
-          </div>
-        </div>
-
-        <div class="config-item">
-          <label for="minLap">最小圈时:</label>
-          <div class="input-with-value">
-            <span class="val">10.0s</span>
-            <input type="range" id="minLap" step="0.5" min="1" max="10" value="10.0"
-              oninput="updateMinLap(this,value)" />
+            <div class="config-item">
+              <label>当前频率:</label>
+              <span id="freqOutput" class="freq-display"></span>
+            </div>
           </div>
         </div>
 
-        <div class="config-item">
-          <label for="alarmThreshold">低电压告警:</label>
-          <div class="input-with-value">
-            <span class="val">3.6v</span>
-            <input type="range" id="alarmThreshold" step="0.1" min="2.6" max="3.6" value="3.0"
-              oninput="updateAlarmThreshold(this,value)" />
+        <!-- 计时相关设置区域 -->
+        <div class="config-section">
+          <h3>计时设置</h3>
+          <div class="section-content">
+            <div class="config-item">
+              <label for="minLap">最小圈时:</label>
+              <div class="input-with-value">
+                <span class="val">10.0s</span>
+                <input type="range" id="minLap" step="0.5" min="1" max="10" value="10.0"
+                  oninput="updateMinLap(this,value)" />
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="config-item">
+        <!-- 告警与播报设置区域 -->
+        <div class="config-section">
+          <h3>告警与播报</h3>
+          <div class="section-content">
+            <div class="config-item">
+              <label for="alarmThreshold">低电压告警:</label>
+              <div class="input-with-value">
+                <span class="val">3.6v</span>
+                <input type="range" id="alarmThreshold" step="0.1" min="2.6" max="3.6" value="3.0"
+                  oninput="updateAlarmThreshold(this,value)" />
+              </div>
+            </div>
+
+            <div class="config-item">
           <label for="announcerSelect">播报类型:</label>
           <select id="announcerSelect">
-            <option value="none">关闭</option>
-            <option value="beep">蜂鸣</option>
-            <option value="1lap">单圈用时</option>
-            <option value="2lap">两圈累计</option>
-            <option value="3lap">三圈累计</option>
+            <option value="0">关闭</option>
+            <option value="1">蜂鸣</option>
+            <option value="2">单圈用时</option>
+            <option value="3">累计用时</option>
           </select>
         </div>
 
-        <div class="config-item">
-          <label for="rate">播报速率:</label>
-          <div class="input-with-value">
-            <span class="val">1.0</span>
-            <input type="range" min="0.1" max="2" step="0.1" id="rate" value="1.0"
-              oninput="updateAnnouncerRate(this,value)" />
+            <div class="config-item">
+              <label for="rate">播报速率:</label>
+              <div class="input-with-value">
+                <span class="val">1.0</span>
+                <input type="range" min="0.1" max="2" step="0.1" id="rate" value="1.0"
+                  oninput="updateAnnouncerRate(this,value)" />
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="config-item">
-          <label for="pname">飞手姓名:</label>
-          <input type="text" id="pname" maxlength="20" />
+        <!-- 用户信息设置区域 -->
+        <div class="config-section">
+          <h3>用户信息</h3>
+          <div class="section-content">
+            <div class="config-item">
+              <label for="pname">飞手姓名:</label>
+              <input type="text" id="pname" maxlength="20" placeholder="输入飞手姓名" />
+            </div>
+          </div>
         </div>
 
-        <div class="config-item">
-          <label for="ssid">WiFi 名称:</label>
-          <input type="text" id="ssid" maxlength="32" />
-        </div>
+        <!-- WiFi设置区域 -->
+        <div class="config-section">
+          <h3>WiFi 设置</h3>
+          <div class="section-content">
+            <div class="config-item">
+              <label for="ssid">WiFi 名称:</label>
+              <input type="text" id="ssid" maxlength="32" placeholder="输入WiFi名称" />
+            </div>
 
-        <div class="config-item">
-          <label for="pwd">WiFi 密码:</label>
-          <input type="password" id="pwd" maxlength="32" />
+            <div class="config-item">
+              <label for="pwd">WiFi 密码:</label>
+              <input type="password" id="pwd" maxlength="32" placeholder="输入WiFi密码" />
+            </div>
+          </div>
         </div>
       </div>
-      <button type="button" id="EnableAudioButton" onclick="enableAudioLoop()">开启语音</button>
-      <button type="button" id="DisableAudioButton" onclick="disableAudioLoop()">关闭语音</button>
-      <button type="button" id="GenerateAudioButton" onclick="generateAudio()">测试语音</button>
-      <br>
-      <button type="button" id="saveRestartButton" onclick="saveAndRestartConfig()">保存配置</button>
+
+      <!-- 操作按钮区域 -->
+      <div class="config-buttons">
+        <div class="button-group">
+          <button type="button" id="EnableAudioButton" onclick="enableAudioLoop()">开启语音</button>
+          <button type="button" id="DisableAudioButton" onclick="disableAudioLoop()">关闭语音</button>
+          <button type="button" id="GenerateAudioButton" onclick="generateAudio()">测试语音</button>
+        </div>
+        <div class="button-group main-buttons">
+          <button type="button" id="saveRestartButton" onclick="saveAndRestartConfig()">保存配置</button>
+        </div>
+      </div>
     </div>
 
     <div id="race" class="tabcontent">
@@ -134,10 +169,9 @@
       </div>
       <table id="lapTable">
         <tr>
-          <th>圈号</th>
-          <th>圈时</th>
-          <th>两圈累计</th>
-          <th>三圈累计</th>
+          <th>圈数</th>
+          <th>单圈用时</th>
+          <th>累计用时</th>
         </tr>
       </table>
     </div>
