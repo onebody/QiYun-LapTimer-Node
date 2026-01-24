@@ -27,13 +27,17 @@ String wifi_ap_ssid;
 // 新增：全局Webserver实例指针，用于静态回调函数中访问类方法
 static Webserver *gWebserverInstance = nullptr;
 
-static float clampf(float v, float lo, float hi) {
-    if (v < lo) return lo;
-    if (v > hi) return hi;
+static float clampf(float v, float lo, float hi)
+{
+    if (v < lo)
+        return lo;
+    if (v > hi)
+        return hi;
     return v;
 }
 
-void Webserver::init(Config *config, LapTimer *lapTimer, BatteryMonitor *batMonitor, Buzzer *buzzer, Led *l) {
+void Webserver::init(Config *config, LapTimer *lapTimer, BatteryMonitor *batMonitor, Buzzer *buzzer, Led *l)
+{
 
     ipAddress.fromString(wifi_ap_address);
 
@@ -42,10 +46,10 @@ void Webserver::init(Config *config, LapTimer *lapTimer, BatteryMonitor *batMoni
     monitor = batMonitor;
     buz = buzzer;
     led = l;
-    
+
     // 保存全局实例指针
     gWebserverInstance = this;
-    
+
     // 设置lap事件回调函数
     timer->setLapEventHandler(lapEventHandler);
 
@@ -61,10 +65,13 @@ void Webserver::init(Config *config, LapTimer *lapTimer, BatteryMonitor *batMoni
     WiFi.setTxPower(WIFI_POWER_19_5dBm);
     esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_LR);
     esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_LR);
-    if (conf->getSsid()[0] == 0) {
+    if (conf->getSsid()[0] == 0)
+    {
         changeMode = WIFI_AP;
         DEBUG("No SSID configured, will start in AP mode\n");
-    } else {
+    }
+    else
+    {
         changeMode = WIFI_STA;
         DEBUG("SSID configured, will try to connect to WiFi network\n");
     }
@@ -73,44 +80,53 @@ void Webserver::init(Config *config, LapTimer *lapTimer, BatteryMonitor *batMoni
     connectionAttempts = 0;
 }
 
-void Webserver::sendRssiEvent(uint8_t rssi) {
-    if (!servicesStarted) return;
+void Webserver::sendRssiEvent(uint8_t rssi)
+{
+    if (!servicesStarted)
+        return;
     char buf[16];
     snprintf(buf, sizeof(buf), "%u", rssi);
     events.send(buf, "rssi");
 }
 
-void Webserver::sendLaptimeEvent(uint32_t lapTime) {
-    if (!servicesStarted) return;
+void Webserver::sendLaptimeEvent(uint32_t lapTime)
+{
+    if (!servicesStarted)
+        return;
     char buf[16];
     snprintf(buf, sizeof(buf), "%u", lapTime);
     events.send(buf, "lap");
 }
 
 // 新增：lap事件处理函数，作为LapTimer的回调
-void Webserver::lapEventHandler(uint32_t lapTime) {
-    if (gWebserverInstance != nullptr) {
+void Webserver::lapEventHandler(uint32_t lapTime)
+{
+    if (gWebserverInstance != nullptr)
+    {
         gWebserverInstance->sendLaptimeEvent(lapTime);
     }
 }
 
-void Webserver::handleWebUpdate(uint32_t currentTimeMs) {
+void Webserver::handleWebUpdate(uint32_t currentTimeMs)
+{
     // If a restart has been requested by the web handler, perform it from
     // the main loop/context to avoid doing a blocking delay or restart
     // inside the async webserver handler (which can be unsafe).
-    if (restartRequested && (millis() - restartRequestTimeMs) > RESTART_DELAY_MS) {
+    if (restartRequested && (millis() - restartRequestTimeMs) > RESTART_DELAY_MS)
+    {
         DEBUG("Restarting device now\n");
         restartRequested = false;
         delay(50);
         ESP.restart();
     }
-    
+
     // 移除定期检查lapAvailable的逻辑，改为使用回调机制
     // if (timer->isLapAvailable()) {
     //     sendLaptimeEvent(timer->getLapTime());
     // }
 
-    if (sendRssi && ((currentTimeMs - rssiSentMs) > WEB_RSSI_SEND_TIMEOUT_MS)) {
+    if (sendRssi && ((currentTimeMs - rssiSentMs) > WEB_RSSI_SEND_TIMEOUT_MS))
+    {
         sendRssiEvent(timer->getRssi());
         rssiSentMs = currentTimeMs;
     }
@@ -122,79 +138,97 @@ void Webserver::handleWebUpdate(uint32_t currentTimeMs) {
     // However, the current Config::write() clears 'modified'.
     // A simple way is to check if we are in AP mode, but a SSID is configured, we should periodically try to switch to STA.
     // Or relying on the user to hit 'Save & Restart' is safer for full re-init.
-    
+
     wl_status_t status = WiFi.status();
 
-    if (status != lastStatus && wifiMode == WIFI_STA) {
+    if (status != lastStatus && wifiMode == WIFI_STA)
+    {
         DEBUG("WiFi status = %u\n", status);
-        switch (status) {
-            case WL_NO_SSID_AVAIL:
-                connectionAttempts++;
-                if (connectionAttempts < 3) {
-                    DEBUG("Connection failed: SSID '%s' not found (WL_NO_SSID_AVAIL). Retrying (%d/3)...\n", conf->getSsid(), connectionAttempts);
-                    WiFi.disconnect();
-                    WiFi.begin(conf->getSsid(), conf->getPassword());
-                    changeTimeMs = currentTimeMs;
-                } else {
-                    DEBUG("Connection failed 3 times: SSID '%s' not found. Switching to AP mode\n", conf->getSsid());
-                    changeTimeMs = currentTimeMs;
-                    changeMode = WIFI_AP;
-                }
-                break;
-            case WL_CONNECT_FAILED:
-                connectionAttempts++;
-                if (connectionAttempts < 3) {
-                    DEBUG("Connection failed: authentication or handshake failed (WL_CONNECT_FAILED). Check password for SSID '%s'. Retrying (%d/3)...\n", conf->getSsid(), connectionAttempts);
-                    WiFi.disconnect();
-                    WiFi.begin(conf->getSsid(), conf->getPassword());
-                    changeTimeMs = currentTimeMs;
-                } else {
-                    DEBUG("Connection failed 3 times: authentication failed for SSID '%s'. Switching to AP mode\n", conf->getSsid());
-                    changeTimeMs = currentTimeMs;
-                    changeMode = WIFI_AP;
-                }
-                break;
-            case WL_CONNECTION_LOST:
-                connectionAttempts++;
-                if (connectionAttempts < 3) {
-                    DEBUG("Connection lost while attempting to connect (WL_CONNECTION_LOST). Retrying (%d/3)...\n", connectionAttempts);
-                    WiFi.disconnect();
-                    WiFi.begin(conf->getSsid(), conf->getPassword());
-                    changeTimeMs = currentTimeMs;
-                } else {
-                    DEBUG("Connection repeatedly lost for SSID '%s'; switching to AP mode\n", conf->getSsid());
-                    changeTimeMs = currentTimeMs;
-                    changeMode = WIFI_AP;
-                }
-                break;
-            case WL_DISCONNECTED:  // try reconnection
+        switch (status)
+        {
+        case WL_NO_SSID_AVAIL:
+            connectionAttempts++;
+            if (connectionAttempts < 3)
+            {
+                DEBUG("Connection failed: SSID '%s' not found (WL_NO_SSID_AVAIL). Retrying (%d/3)...\n", conf->getSsid(), connectionAttempts);
+                WiFi.disconnect();
+                WiFi.begin(conf->getSsid(), conf->getPassword());
                 changeTimeMs = currentTimeMs;
-                break;
-            case WL_CONNECTED:
-                buz->beep(200);
-                led->off();
-                wifiConnected = true;
-                DEBUG("WiFi connected! IP address: %s\n", WiFi.localIP().toString().c_str());
-                break;
-            default:
-                break;
+            }
+            else
+            {
+                DEBUG("Connection failed 3 times: SSID '%s' not found. Switching to AP mode\n", conf->getSsid());
+                changeTimeMs = currentTimeMs;
+                changeMode = WIFI_AP;
+            }
+            break;
+        case WL_CONNECT_FAILED:
+            connectionAttempts++;
+            if (connectionAttempts < 3)
+            {
+                DEBUG("Connection failed: authentication or handshake failed (WL_CONNECT_FAILED). Check password for SSID '%s'. Retrying (%d/3)...\n", conf->getSsid(), connectionAttempts);
+                WiFi.disconnect();
+                WiFi.begin(conf->getSsid(), conf->getPassword());
+                changeTimeMs = currentTimeMs;
+            }
+            else
+            {
+                DEBUG("Connection failed 3 times: authentication failed for SSID '%s'. Switching to AP mode\n", conf->getSsid());
+                changeTimeMs = currentTimeMs;
+                changeMode = WIFI_AP;
+            }
+            break;
+        case WL_CONNECTION_LOST:
+            connectionAttempts++;
+            if (connectionAttempts < 3)
+            {
+                DEBUG("Connection lost while attempting to connect (WL_CONNECTION_LOST). Retrying (%d/3)...\n", connectionAttempts);
+                WiFi.disconnect();
+                WiFi.begin(conf->getSsid(), conf->getPassword());
+                changeTimeMs = currentTimeMs;
+            }
+            else
+            {
+                DEBUG("Connection repeatedly lost for SSID '%s'; switching to AP mode\n", conf->getSsid());
+                changeTimeMs = currentTimeMs;
+                changeMode = WIFI_AP;
+            }
+            break;
+        case WL_DISCONNECTED: // try reconnection
+            changeTimeMs = currentTimeMs;
+            break;
+        case WL_CONNECTED:
+            buz->beep(200);
+            led->off();
+            wifiConnected = true;
+            DEBUG("WiFi connected! IP address: %s\n", WiFi.localIP().toString().c_str());
+            break;
+        default:
+            break;
         }
         lastStatus = status;
     }
-    if (status != WL_CONNECTED && wifiMode == WIFI_STA && (currentTimeMs - changeTimeMs) > WIFI_CONNECTION_TIMEOUT_MS) {
-        if (!wifiConnected) {
+    if (status != WL_CONNECTED && wifiMode == WIFI_STA && (currentTimeMs - changeTimeMs) > WIFI_CONNECTION_TIMEOUT_MS)
+    {
+        if (!wifiConnected)
+        {
             connectionAttempts++;
-            if (connectionAttempts < 3) {
+            if (connectionAttempts < 3)
+            {
                 DEBUG("Connection timed out while connecting to '%s' (status=%u). Retrying (%d/3)...\n", conf->getSsid(), status, connectionAttempts);
                 WiFi.disconnect();
                 WiFi.begin(conf->getSsid(), conf->getPassword());
                 changeTimeMs = currentTimeMs;
-            } else {
+            }
+            else
+            {
                 DEBUG("Connection timed out 3 times for '%s' (status=%u). Switching to AP mode\n", conf->getSsid(), status);
-                changeMode = WIFI_AP;  // if we didnt manage to ever connect to wifi network
+                changeMode = WIFI_AP; // if we didnt manage to ever connect to wifi network
                 changeTimeMs = currentTimeMs;
             }
-        } else {
+        }
+        else
+        {
             DEBUG("WiFi lost after being connected (status=%u). Attempting reconnect...\n", status);
             WiFi.reconnect();
             startServices();
@@ -203,49 +237,55 @@ void Webserver::handleWebUpdate(uint32_t currentTimeMs) {
             changeTimeMs = currentTimeMs;
         }
     }
-    if (changeMode != wifiMode && changeMode != WIFI_OFF && (currentTimeMs - changeTimeMs) > WIFI_RECONNECT_TIMEOUT_MS) {
-        switch (changeMode) {
-            case WIFI_AP:
-                DEBUG("Changing to WiFi AP mode\n");
+    if (changeMode != wifiMode && changeMode != WIFI_OFF && (currentTimeMs - changeTimeMs) > WIFI_RECONNECT_TIMEOUT_MS)
+    {
+        switch (changeMode)
+        {
+        case WIFI_AP:
+            DEBUG("Changing to WiFi AP mode\n");
 
-                WiFi.disconnect();
-                wifiMode = WIFI_AP;
-                WiFi.setHostname(wifi_hostname);  // hostname must be set before the mode is set to STA
-                WiFi.mode(wifiMode);
-                changeTimeMs = currentTimeMs;
-                WiFi.softAPConfig(ipAddress, ipAddress, netMsk);
-                WiFi.softAP(wifi_ap_ssid.c_str(), wifi_ap_password);
-                startServices();
-                buz->beep(1000);
-                led->on(1000);
-                DEBUG("AP mode started! AP IP address: %s\n", WiFi.softAPIP().toString().c_str());
-                break;
-            case WIFI_STA:
-                DEBUG("Connecting to WiFi network\n");
-                wifiMode = WIFI_STA;
-                WiFi.setHostname(wifi_hostname);  // hostname must be set before the mode is set to STA
-                WiFi.mode(wifiMode);
-                changeTimeMs = currentTimeMs;
-                WiFi.begin(conf->getSsid(), conf->getPassword());
-                startServices();
-                led->blink(200);
-            default:
-                break;
+            WiFi.disconnect();
+            wifiMode = WIFI_AP;
+            WiFi.setHostname(wifi_hostname); // hostname must be set before the mode is set to STA
+            WiFi.mode(wifiMode);
+            changeTimeMs = currentTimeMs;
+            WiFi.softAPConfig(ipAddress, ipAddress, netMsk);
+            WiFi.softAP(wifi_ap_ssid.c_str(), wifi_ap_password);
+            startServices();
+            buz->beep(1000);
+            led->on(1000);
+            DEBUG("AP mode started! AP IP address: %s\n", WiFi.softAPIP().toString().c_str());
+            break;
+        case WIFI_STA:
+            DEBUG("Connecting to WiFi network\n");
+            wifiMode = WIFI_STA;
+            WiFi.setHostname(wifi_hostname); // hostname must be set before the mode is set to STA
+            WiFi.mode(wifiMode);
+            changeTimeMs = currentTimeMs;
+            WiFi.begin(conf->getSsid(), conf->getPassword());
+            startServices();
+            led->blink(200);
+        default:
+            break;
         }
 
         changeMode = WIFI_OFF;
     }
 
-    if (servicesStarted) {
+    if (servicesStarted)
+    {
         dnsServer.processNextRequest();
     }
 }
 
 /** Is this an IP? */
-static boolean isIp(String str) {
-    for (size_t i = 0; i < str.length(); i++) {
+static boolean isIp(String str)
+{
+    for (size_t i = 0; i < str.length(); i++)
+    {
         int c = str.charAt(i);
-        if (c != '.' && (c < '0' || c > '9')) {
+        if (c != '.' && (c < '0' || c > '9'))
+        {
             return false;
         }
     }
@@ -253,19 +293,23 @@ static boolean isIp(String str) {
 }
 
 /** IP to String? */
-static String toStringIp(IPAddress ip) {
+static String toStringIp(IPAddress ip)
+{
     String res = "";
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; i++)
+    {
         res += String((ip >> (8 * i)) & 0xFF) + ".";
     }
     res += String(((ip >> 8 * 3)) & 0xFF);
     return res;
 }
 
-static bool captivePortal(AsyncWebServerRequest *request) {
+static bool captivePortal(AsyncWebServerRequest *request)
+{
     extern const char *wifi_hostname;
 
-    if (!isIp(request->host()) && request->host() != (String(wifi_hostname) + ".local")) {
+    if (!isIp(request->host()) && request->host() != (String(wifi_hostname) + ".local"))
+    {
         DEBUG("Request redirected to captive portal\n");
         request->redirect(String("http://") + toStringIp(request->client()->localIP()));
         return true;
@@ -273,36 +317,44 @@ static bool captivePortal(AsyncWebServerRequest *request) {
     return false;
 }
 
-static void handleRoot(AsyncWebServerRequest *request) {
-    if (captivePortal(request)) {  // If captive portal redirect instead of displaying the page.
+static void handleRoot(AsyncWebServerRequest *request)
+{
+    if (captivePortal(request))
+    { // If captive portal redirect instead of displaying the page.
         return;
     }
     // 特殊处理 Captive Portal 探测 URL，直接返回 204 No Content 或简单的 Success
     // 避免它们去尝试打开不存在的物理文件 (LittleFS) 导致报错
     String url = request->url();
-    if (url.endsWith("/generate_204") || 
-        url.endsWith("/gen_204") || 
-        url.endsWith("/ncsi.txt") || 
+    if (url.endsWith("/generate_204") ||
+        url.endsWith("/gen_204") ||
+        url.endsWith("/ncsi.txt") ||
         url.endsWith("/success.txt") ||
         url.endsWith("/canonical.html") ||
         url.endsWith("/hotspot-detect.html") ||
         url.endsWith("/library/test/success.html") ||
         url.endsWith("/connectivity-check.html") ||
         url.endsWith("/check_network_status.txt") ||
-        url.endsWith("/fwlink")) {
+        url.endsWith("/fwlink"))
+    {
         request->send(204);
         return;
     }
 
-    if (LittleFS.exists("/index.html")) {
+    if (LittleFS.exists("/index.html"))
+    {
         request->send(LittleFS, "/index.html", "text/html");
-    } else {
+    }
+    else
+    {
         request->send(200, "text/plain", "QiYun-LapTimer is running.\n\nError: Web interface not found (index.html missing).\nPlease upload filesystem using 'pio run -t uploadfs'.");
     }
 }
 
-static void handleNotFound(AsyncWebServerRequest *request) {
-    if (request->method() == HTTP_OPTIONS) {
+static void handleNotFound(AsyncWebServerRequest *request)
+{
+    if (request->method() == HTTP_OPTIONS)
+    {
         AsyncWebServerResponse *preflight = request->beginResponse(204);
         preflight->addHeader("Access-Control-Allow-Origin", "*");
         preflight->addHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
@@ -311,7 +363,8 @@ static void handleNotFound(AsyncWebServerRequest *request) {
         request->send(preflight);
         return;
     }
-    if (captivePortal(request)) {  // If captive portal redirect instead of displaying the error page.
+    if (captivePortal(request))
+    { // If captive portal redirect instead of displaying the error page.
         return;
     }
     String message = F("File Not Found\n\n");
@@ -323,7 +376,8 @@ static void handleNotFound(AsyncWebServerRequest *request) {
     message += request->args();
     message += F("\n");
 
-    for (uint8_t i = 0; i < request->args(); i++) {
+    for (uint8_t i = 0; i < request->args(); i++)
+    {
         message += String(F(" ")) + request->argName(i) + F(": ") + request->arg(i) + F("\n");
     }
     AsyncWebServerResponse *response = request->beginResponse(404, "text/plain", message);
@@ -333,8 +387,10 @@ static void handleNotFound(AsyncWebServerRequest *request) {
     request->send(response);
 }
 
-static bool startLittleFS() {
-    if (!LittleFS.begin()) {
+static bool startLittleFS()
+{
+    if (!LittleFS.begin())
+    {
         DEBUG("LittleFS mount failed\n");
         return false;
     }
@@ -342,8 +398,10 @@ static bool startLittleFS() {
     return true;
 }
 
-static void startMDNS() {
-    if (!MDNS.begin(wifi_hostname)) {
+static void startMDNS()
+{
+    if (!MDNS.begin(wifi_hostname))
+    {
         DEBUG("Error starting mDNS\n");
         return;
     }
@@ -354,8 +412,10 @@ static void startMDNS() {
     MDNS.addService("http", "tcp", 80);
 }
 
-void Webserver::startServices() {
-    if (servicesStarted) {
+void Webserver::startServices()
+{
+    if (servicesStarted)
+    {
         MDNS.end();
         startMDNS();
         return;
@@ -364,7 +424,7 @@ void Webserver::startServices() {
     startLittleFS();
 
     server.on("/", handleRoot);
-    server.on("/generate_204", handleRoot);  // handle Andriod phones doing shit to detect if there is 'real' internet and possibly dropping conn.
+    server.on("/generate_204", handleRoot); // handle Andriod phones doing shit to detect if there is 'real' internet and possibly dropping conn.
     server.on("/gen_204", handleRoot);
     server.on("/library/test/success.html", handleRoot);
     server.on("/hotspot-detect.html", handleRoot);
@@ -375,7 +435,8 @@ void Webserver::startServices() {
     server.on("/canonical.html", handleRoot);
     server.on("/success.txt", handleRoot);
 
-    server.on("/status", [this](AsyncWebServerRequest *request) {
+    server.on("/status", [this](AsyncWebServerRequest *request)
+              {
         char buf[1024];
         char configBuf[256];
         conf->toJsonString(configBuf);
@@ -410,40 +471,39 @@ Battery Voltage:\t%0.1fv";
                  FIRMWARE_VERSION,
                  WiFi.localIP().toString().c_str(), WiFi.macAddress().c_str(), configBuf, voltage);
         request->send(200, "text/plain", buf);
-        led->on(200);
-    });
+        led->on(200); });
 
-    server.on("/version", [this](AsyncWebServerRequest *request) {
-        char buf[64];
-        snprintf(buf, sizeof(buf), "{\"version\":\"%s\"}", FIRMWARE_VERSION);
+    server.on("/version", [this](AsyncWebServerRequest *request)
+              {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "{\"version\":\"%s\",\"filesystemVersion\":\"%s\"}", FIRMWARE_VERSION, FILESYSTEM_VERSION);
         AsyncWebServerResponse* res = request->beginResponse(200, "application/json", buf);
         res->addHeader("Access-Control-Allow-Origin", "*");
         request->send(res);
-        led->on(200);
-    });
+        led->on(200); });
 
-    server.on("/timer/start", HTTP_POST, [this](AsyncWebServerRequest *request) {
+    server.on("/timer/start", HTTP_POST, [this](AsyncWebServerRequest *request)
+              {
         timer->start();
         AsyncWebServerResponse* res = request->beginResponse(200, "application/json", "{\"status\": \"OK\"}");
         res->addHeader("Access-Control-Allow-Origin", "*");
         res->addHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
         res->addHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Origin");
         res->addHeader("Access-Control-Max-Age", "600");
-        request->send(res);
-    });
+        request->send(res); });
 
-    server.on("/timer/stop", HTTP_POST, [this](AsyncWebServerRequest *request) {
+    server.on("/timer/stop", HTTP_POST, [this](AsyncWebServerRequest *request)
+              {
         timer->stop();
         AsyncWebServerResponse* res = request->beginResponse(200, "application/json", "{\"status\": \"OK\"}");
         res->addHeader("Access-Control-Allow-Origin", "*");
         res->addHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
         res->addHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Origin");
         res->addHeader("Access-Control-Max-Age", "600");
-        request->send(res);
-    });
-  
+        request->send(res); });
 
-    server.on("/timer/rssiStart", HTTP_POST, [this](AsyncWebServerRequest *request) {
+    server.on("/timer/rssiStart", HTTP_POST, [this](AsyncWebServerRequest *request)
+              {
         sendRssi = true;
         DEBUG("RSSI streaming START requested\n");
         AsyncWebServerResponse* res = request->beginResponse(200, "application/json", "{\"status\": \"OK\"}");
@@ -452,11 +512,10 @@ Battery Voltage:\t%0.1fv";
         res->addHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Origin");
         res->addHeader("Access-Control-Max-Age", "600");
         request->send(res);
-        led->on(200);
-    });
+        led->on(200); });
 
-
-    server.on("/timer/rssiStop", HTTP_POST, [this](AsyncWebServerRequest *request) {
+    server.on("/timer/rssiStop", HTTP_POST, [this](AsyncWebServerRequest *request)
+              {
         sendRssi = false;
         DEBUG("RSSI streaming STOP requested\n");
         AsyncWebServerResponse* res = request->beginResponse(200, "application/json", "{\"status\": \"OK\"}");
@@ -465,17 +524,17 @@ Battery Voltage:\t%0.1fv";
         res->addHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Origin");
         res->addHeader("Access-Control-Max-Age", "600");
         request->send(res);
-        led->on(200);
-    });
+        led->on(200); });
 
-    server.on("/calibration/noise/start", HTTP_POST, [this](AsyncWebServerRequest *request) {
+    server.on("/calibration/noise/start", HTTP_POST, [this](AsyncWebServerRequest *request)
+              {
         timer->startCalibrationNoise();
         AsyncWebServerResponse* res = request->beginResponse(200, "application/json", "{\"status\": \"OK\"}");
         res->addHeader("Access-Control-Allow-Origin", "*");
-        request->send(res);
-    });
+        request->send(res); });
 
-    server.on("/calibration/noise/stop", HTTP_POST, [this](AsyncWebServerRequest *request) {
+    server.on("/calibration/noise/stop", HTTP_POST, [this](AsyncWebServerRequest *request)
+              {
         uint8_t maxNoise = timer->stopCalibrationNoise();
         uint16_t samples = timer->getCalibrationNoiseSamples();
         uint16_t target = conf->getCalibrationSamples();
@@ -484,18 +543,18 @@ Battery Voltage:\t%0.1fv";
         snprintf(buf, sizeof(buf), "{\"status\":\"OK\",\"maxNoise\":%u,\"samples\":%u,\"target\":%u,\"ok\":%s}", maxNoise, samples, target, ok ? "true" : "false");
         AsyncWebServerResponse* res = request->beginResponse(200, "application/json", buf);
         res->addHeader("Access-Control-Allow-Origin", "*");
-        request->send(res);
-    });
+        request->send(res); });
 
-    server.on("/calibration/crossing/start", HTTP_POST, [this](AsyncWebServerRequest *request) {
+    server.on("/calibration/crossing/start", HTTP_POST, [this](AsyncWebServerRequest *request)
+              {
         // Deprecated but kept for compatibility
         timer->startCalibrationCrossing();
         AsyncWebServerResponse* res = request->beginResponse(200, "application/json", "{\"status\": \"OK\"}");
         res->addHeader("Access-Control-Allow-Origin", "*");
-        request->send(res);
-    });
+        request->send(res); });
 
-    server.on("/calibration/crossing/stop", HTTP_POST, [this](AsyncWebServerRequest *request) {
+    server.on("/calibration/crossing/stop", HTTP_POST, [this](AsyncWebServerRequest *request)
+              {
         // Deprecated: just returns empty/dummy values to avoid breaking legacy clients if any
         uint8_t maxPeak = 0;
         uint8_t maxNoise = timer->getCalibrationMaxNoise();
@@ -503,10 +562,10 @@ Battery Voltage:\t%0.1fv";
         snprintf(buf, sizeof(buf), "{\"status\":\"OK\",\"maxNoise\":%u,\"maxPeak\":%u}", maxNoise, maxPeak);
         AsyncWebServerResponse* res = request->beginResponse(200, "application/json", buf);
         res->addHeader("Access-Control-Allow-Origin", "*");
-        request->send(res);
-    });
+        request->send(res); });
 
-    server.on("/save_and_restart", HTTP_POST, [this](AsyncWebServerRequest *request) {
+    server.on("/save_and_restart", HTTP_POST, [this](AsyncWebServerRequest *request)
+              {
         conf->write();
         AsyncWebServerResponse* res = request->beginResponse(200, "application/json", "{\"status\": \"OK\"}");
         res->addHeader("Access-Control-Allow-Origin", "*");
@@ -517,10 +576,10 @@ Battery Voltage:\t%0.1fv";
         // Schedule a restart from the main loop/context to avoid calling
         // ESP.restart() inside the async handler.
         restartRequestTimeMs = millis();
-        restartRequested = true;
-    });
+        restartRequested = true; });
 
-    server.on("/config", HTTP_GET, [this](AsyncWebServerRequest *request) {
+    server.on("/config", HTTP_GET, [this](AsyncWebServerRequest *request)
+              {
         AsyncResponseStream *response = request->beginResponseStream("application/json");
         response->addHeader("Access-Control-Allow-Origin", "*");
         response->addHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
@@ -528,19 +587,12 @@ Battery Voltage:\t%0.1fv";
         response->addHeader("Access-Control-Max-Age", "600");
         conf->toJson(*response);
         request->send(response);
-        led->on(200);
-    });
-    // server.on("/update", HTTP_OPTIONS, [](AsyncWebServerRequest *request) {
-    //     AsyncWebServerResponse *preflight = request->beginResponse(204);
-    //     preflight->addHeader("Access-Control-Allow-Origin", "*");
-    //     preflight->addHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
-    //     preflight->addHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Origin");
-    //     preflight->addHeader("Access-Control-Max-Age", "600");
-    //     request->send(preflight);
-    // });
+        led->on(200); });
+
     server.on(
         "/update", HTTP_POST,
-        [](AsyncWebServerRequest *request) {
+        [](AsyncWebServerRequest *request)
+        {
             bool ok = !Update.hasError();
             AsyncWebServerResponse *res = request->beginResponse(ok ? 200 : 500, "application/json", ok ? "{\"status\":\"OK\"}" : "{\"status\":\"FAIL\"}");
             res->addHeader("Access-Control-Allow-Origin", "*");
@@ -548,20 +600,24 @@ Battery Voltage:\t%0.1fv";
             res->addHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Origin");
             res->addHeader("Access-Control-Max-Age", "600");
             request->send(res);
-            if (ok) ESP.restart();
+            if (ok)
+                ESP.restart();
         },
-        [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-            if (!index) {
+        [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
+        {
+            if (!index)
+            {
                 Update.begin(UPDATE_SIZE_UNKNOWN);
             }
             Update.write(data, len);
-            if (final) {
+            if (final)
+            {
                 Update.end(true);
             }
         });
-    
 
-    AsyncCallbackJsonWebHandler *configJsonHandler = new AsyncCallbackJsonWebHandler("/config", [this](AsyncWebServerRequest *request, JsonVariant &json) {
+    AsyncCallbackJsonWebHandler *configJsonHandler = new AsyncCallbackJsonWebHandler("/config", [this](AsyncWebServerRequest *request, JsonVariant &json)
+                                                                                     {
         JsonObject jsonObj = json.as<JsonObject>();
 #ifdef DEBUG_OUT
         serializeJsonPretty(jsonObj, DEBUG_OUT);
@@ -570,18 +626,17 @@ Battery Voltage:\t%0.1fv";
         conf->fromJson(jsonObj);
         conf->write(); // 立即将配置写入EEPROM
         request->send(200, "application/json", "{\"status\": \"OK\"}");
-        led->on(200);
-    });
+        led->on(200); });
 
     server.serveStatic("/", LittleFS, "/").setCacheControl("max-age=600");
 
-    events.onConnect([this](AsyncEventSourceClient *client) {
+    events.onConnect([this](AsyncEventSourceClient *client)
+                     {
         if (client->lastId()) {
             DEBUG("Client reconnected! Last message ID that it got is: %u\n", client->lastId());
         }
         client->send("start", NULL, millis(), 1000);
-        led->on(200);
-    });
+        led->on(200); });
 
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
     DefaultHeaders::Instance().addHeader("Access-Control-Max-Age", "600");
@@ -597,6 +652,46 @@ Battery Voltage:\t%0.1fv";
 
     server.addHandler(&events);
     server.addHandler(configJsonHandler);
+
+    // 为了支持文件系统更新，我们需要添加一个额外的路由
+    // 注意：ElegantOTA默认只处理固件更新，文件系统更新需要手动实现
+    
+    // 定义一个简单的文件系统更新路由，支持单个文件上传
+    server.on("/update/fs/single", HTTP_POST, [](AsyncWebServerRequest *request) {
+        AsyncWebServerResponse *res = request->beginResponse(200, "application/json", "{\"status\":\"OK\"}");
+        res->addHeader("Access-Control-Allow-Origin", "*");
+        request->send(res);
+    }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+        static File uploadFile;
+        
+        // 如果是第一个数据包，创建文件
+        if (!index) {
+            DEBUG("Uploading file: %s\n", filename.c_str());
+            uploadFile = LittleFS.open("/" + filename, FILE_WRITE);
+            if (!uploadFile) {
+                DEBUG("Failed to create file: %s\n", filename.c_str());
+                return;
+            }
+        }
+        
+        // 写入数据
+        if (len > 0) {
+            if (uploadFile.write(data, len) != len) {
+                DEBUG("Failed to write to file: %s\n", filename.c_str());
+                uploadFile.close();
+                return;
+            }
+        }
+        
+        // 如果是最后一个数据包，完成上传
+        if (final) {
+            uploadFile.close();
+            DEBUG("File upload completed: %s\n", filename.c_str());
+        }
+    });
+    
+    // 文件系统更新由ElegantOTA处理，不需要我们自己实现
+    // ElegantOTA使用/ota/start路由，并通过mode=fs参数支持文件系统更新
 
     ElegantOTA.setAutoReboot(true);
     ElegantOTA.begin(&server);

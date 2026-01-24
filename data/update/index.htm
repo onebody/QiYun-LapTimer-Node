@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>固件在线更新</title>
+    <title>固件与文件系统在线更新</title>
     <style>
       body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 24px; color: #222; background: #fff; }
       .card { max-width: 520px; margin: 0 auto; border: 1px solid #ddd; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.06); }
@@ -16,46 +16,182 @@
       .hint { font-size: 12px; color: #888; }
       .ok { color: #0a0; font-size: 13px; margin-top: 10px; }
       .err { color: #d00; font-size: 13px; margin-top: 10px; }
+      .update-section { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+      .update-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+      .radio-group { display: flex; gap: 20px; margin: 10px 0; }
+      .radio-group label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
     </style>
   </head>
   <body>
     <div class="card">
-      <h1>固件更新</h1>
-      <p>选择固件文件并上传到设备，上传完成后设备将自动重启。</p>
-      <p id="version" class="hint">当前固件版本: <span>加载中...</span></p>
-      <form id="otaForm" method="POST" action="/update" enctype="multipart/form-data">
-        <label for="fw">选择固件文件</label>
-        <input type="file" id="fw" name="firmware" accept=".bin,.bin.gz" required title="请选择固件文件 (.bin 或 .bin.gz)" />
-        <div class="row">
-          <button id="btn" type="submit">上传固件</button>
-          <span class="hint">支持 .bin 或压缩 .bin.gz</span>
+      <h1>固件与文件系统更新</h1>
+      <p id="version" class="hint">当前固件版本: <span id="firmwareVersion">加载中...</span></p>
+      <p id="filesystemVersion" class="hint">当前文件系统版本: <span id="fsVersion">加载中...</span></p>
+      
+      <div class="radio-group">
+        <label>
+          <input type="radio" name="updateType" value="firmware" checked> 固件更新
+        </label>
+        <label>
+          <input type="radio" name="updateType" value="filesystem"> 文件系统更新
+        </label>
+      </div>
+      
+      <div class="update-section">
+        <div id="firmwareSection">
+          <label for="fw">选择固件文件</label>
+          <input type="file" id="fw" name="firmware" accept=".bin,.bin.gz" required title="请选择固件文件 (.bin 或 .bin.gz)" />
+          <div class="row">
+            <button id="btn" type="submit">上传固件</button>
+            <span class="hint">支持 .bin 或压缩 .bin.gz</span>
+          </div>
         </div>
-      </form>
+        
+        <div id="filesystemSection" style="display: none;">
+          <label for="fs">选择文件系统文件</label>
+          <input type="file" id="fs" name="filesystem" accept=".bin" required title="请选择文件系统文件 (.bin)" />
+          <div class="row">
+            <button id="btnFs" type="button">上传文件系统</button>
+            <span class="hint">支持 .bin 文件</span>
+          </div>
+        </div>
+      </div>
+      
       <div id="msg" class="hint"></div>
     </div>
     <script>
-      const form = document.getElementById('otaForm');
+      const firmwareSection = document.getElementById('firmwareSection');
+      const filesystemSection = document.getElementById('filesystemSection');
+      const firmwareInput = document.getElementById('fw');
+      const filesystemInput = document.getElementById('fs');
       const btn = document.getElementById('btn');
+      const btnFs = document.getElementById('btnFs');
       const msg = document.getElementById('msg');
-      const versionSpan = document.querySelector('#version span');
+      const updateTypeRadios = document.querySelectorAll('input[name="updateType"]');
       
-      // 获取并显示当前固件版本号
+      // 获取并显示当前版本号
       window.addEventListener('load', function() {
         fetch('/version')
           .then(response => response.json())
           .then(data => {
-            versionSpan.textContent = data.version;
+            document.getElementById('firmwareVersion').textContent = data.version;
+            document.getElementById('fsVersion').textContent = data.filesystemVersion || '未知';
           })
           .catch(error => {
-            versionSpan.textContent = '无法获取版本信息';
+            document.getElementById('firmwareVersion').textContent = '无法获取版本信息';
+            document.getElementById('fsVersion').textContent = '无法获取版本信息';
           });
         
         fetch('/status').then(()=>{}).catch(()=>{});
       });
       
-      form.addEventListener('submit', function(ev) {
+      // 切换更新类型
+      updateTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+          if (this.value === 'firmware') {
+            firmwareSection.style.display = 'block';
+            filesystemSection.style.display = 'none';
+            firmwareInput.required = true;
+            filesystemInput.required = false;
+          } else {
+            firmwareSection.style.display = 'none';
+            filesystemSection.style.display = 'block';
+            firmwareInput.required = false;
+            filesystemInput.required = true;
+          }
+        });
+      });
+      
+      // 固件更新处理
+      btn.addEventListener('click', function() {
+        const file = firmwareInput.files[0];
+        if (!file) {
+          msg.textContent = '请选择固件文件';
+          return;
+        }
+        
         btn.disabled = true;
-        msg.textContent = '正在上传，请稍候...';
+        msg.textContent = '正在上传固件，请稍候...';
+        
+        // 使用ElegantOTA的固件更新API
+        fetch('/ota/start?mode=firmware', {
+          method: 'GET'
+        })
+        .then(response => {
+          if (response.ok) {
+            return response.text();
+          } else {
+            throw new Error('Failed to start OTA');
+          }
+        })
+        .then(data => {
+          // 上传文件内容
+          const formData = new FormData();
+          formData.append('update', file);
+          
+          return fetch('/ota/upload', {
+            method: 'POST',
+            body: formData
+          });
+        })
+        .then(response => {
+          if (response.ok) {
+            msg.textContent = '固件上传成功，设备正在重启...';
+            // ElegantOTA会自动处理重启
+          } else {
+            throw new Error('Failed to upload firmware');
+          }
+        })
+        .catch(error => {
+          msg.textContent = '更新失败: ' + error.message;
+          btn.disabled = false;
+        });
+      });
+      
+      // 文件系统更新处理
+      btnFs.addEventListener('click', function() {
+        const file = filesystemInput.files[0];
+        if (!file) {
+          msg.textContent = '请选择文件系统文件';
+          return;
+        }
+        
+        btnFs.disabled = true;
+        msg.textContent = '正在上传文件系统，请稍候...';
+        
+        // 使用ElegantOTA的文件系统更新API
+        fetch('/ota/start?mode=fs', {
+          method: 'GET'
+        })
+        .then(response => {
+          if (response.ok) {
+            return response.text();
+          } else {
+            throw new Error('Failed to start OTA');
+          }
+        })
+        .then(data => {
+          // 上传文件内容
+          const formData = new FormData();
+          formData.append('update', file);
+          
+          return fetch('/ota/upload', {
+            method: 'POST',
+            body: formData
+          });
+        })
+        .then(response => {
+          if (response.ok) {
+            msg.textContent = '文件系统上传成功，设备正在重启...';
+            // ElegantOTA会自动处理重启，无需调用/ota/finish
+          } else {
+            throw new Error('Failed to upload filesystem');
+          }
+        })
+        .catch(error => {
+          msg.textContent = '更新失败: ' + error.message;
+          btnFs.disabled = false;
+        });
       });
     </script>
   </body>

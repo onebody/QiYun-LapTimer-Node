@@ -1523,3 +1523,45 @@ function setBandChannelIndex(freq) {
     }
   }
 }
+
+// OTA更新相关功能
+window.addEventListener('load', function() {
+  // 固件更新表单处理
+  const otaForm = document.getElementById('otaForm');
+  const otaBtn = document.getElementById('btn');
+  const otaMsg = document.getElementById('msg');
+  const versionSpan = document.querySelector('#version span');
+  
+  // 网页更新表单处理
+  const webUpdateForm = document.getElementById('webUpdateForm');
+  const webBtn = document.getElementById('webBtn');
+  const webMsg = document.getElementById('webMsg');
+  
+  // 获取并显示当前固件版本号
+  if (versionSpan) {
+    fetch('/version')
+      .then(response => response.json())
+      .then(data => {
+        versionSpan.textContent = data.version;
+      })
+      .catch(error => {
+        versionSpan.textContent = '无法获取版本信息';
+      });
+  }
+  
+  // 固件更新表单提交处理
+  if (otaForm && otaBtn && otaMsg) {
+    otaForm.addEventListener('submit', function(ev) {
+      otaBtn.disabled = true;
+      otaMsg.textContent = '正在上传固件，请稍候...';
+    });
+  }
+  
+  // 网页更新表单提交处理
+  if (webUpdateForm && webBtn && webMsg) {
+    webUpdateForm.addEventListener('submit', function(ev) {
+      webBtn.disabled = true;
+      webMsg.textContent = '正在上传网页更新包，请稍候...';
+    });
+  }
+});
