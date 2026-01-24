@@ -140,19 +140,6 @@ let calibNoiseSamples = 0;
 let calibCrossingSamples = 0;
 let calibTargetSamples = 20;
 
-// 添加时间戳格式化函数
-function getTimestamp() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  const seconds = String(now.getSeconds()).padStart(2, '0');
-  const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
-}
-
 function getSelectedDroneSize() {
   const v = parseInt(droneSizeSelect?.value || "5");
   return v === 2 ? 2 : 5;
@@ -300,7 +287,7 @@ function startCalib() {
   const stopBtn = document.querySelector("#calibStep2 button");
   if (stopBtn) stopBtn.disabled = true;
 
-  console.log(`[${getTimestamp()}] 开始自动校准`);
+  console.log("开始自动校准");
 
   // 发送自动校准请求
   fetch(esp32BaseUrl + "/calibration/noise/start", {
@@ -391,11 +378,11 @@ function stopCalib(rssiSamples) {
       // 保存校准后的阈值到设备
       saveConfig()
         .then(() => {
-          console.log(`[${getTimestamp()}] 校准阈值已保存`);
+          console.log("校准阈值已保存");
           showToast("校准成功，阈值已保存", "success");
         })
         .catch((error) => {
-          console.error(`[${getTimestamp()}] 保存校准阈值失败:`, error);
+          console.error("保存校准阈值失败:", error);
           showToast("校准成功，但保存阈值失败", "warning");
         });
 
@@ -641,7 +628,7 @@ function applyCalib() {
   const recExitEl = document.getElementById("recExit");
 
   if (!recEnterEl || !recExitEl) {
-    console.warn(`[${getTimestamp()}] Calibration elements not found, cannot apply calibration`);
+    console.warn("Calibration elements not found, cannot apply calibration");
     return;
   }
 
@@ -716,11 +703,11 @@ document.addEventListener('DOMContentLoaded', function () {
   const otaIframe = document.querySelector('#ota iframe');
   if (otaIframe) {
     otaIframe.addEventListener('load', function () {
-      console.log(`[${getTimestamp()}] OTA iframe loaded`);
+      console.log('OTA iframe loaded');
     });
 
     otaIframe.addEventListener('error', function (e) {
-      console.error(`[${getTimestamp()}] OTA iframe error:`, e);
+      console.error('OTA iframe error:', e);
     });
   }
 
@@ -768,11 +755,11 @@ document.addEventListener('DOMContentLoaded', function () {
           document.head.appendChild(link);
         }
       } catch (e) {
-        console.error(`[${getTimestamp()}] LOGO 透明化失败:`, e);
+        console.error('LOGO 透明化失败:', e);
       }
     };
     img.onerror = function (e) {
-      console.error(`[${getTimestamp()}] LOGO 加载失败:`, e);
+      console.error('LOGO 加载失败:', e);
     };
     img.src = sourceLogoUrl;
   }
@@ -789,10 +776,10 @@ window.onload = function (e) {
   // const esp32Ip = urlParams.get('esp32ip');
   // if (esp32Ip) {
   //   esp32BaseUrl = `http://${esp32Ip}`;
-  //   console.log(`[${getTimestamp()}] 使用ESP32 IP地址: ${esp32BaseUrl}`);
+  //   console.log(`使用ESP32 IP地址: ${esp32BaseUrl}`);
   // } else {
   esp32BaseUrl = window.location.origin;
-  //   console.log(`[${getTimestamp()}] 未指定esp32ip，使用当前地址:`, esp32BaseUrl);
+  //   console.log('未指定esp32ip，使用当前地址:', esp32BaseUrl);
   // }
 
   // 设置 OTA iframe 的地址为 esp32BaseUrl/update
@@ -804,7 +791,7 @@ window.onload = function (e) {
   fetch(esp32BaseUrl + "/config")
     .then((response) => response.json())
     .then((config) => {
-      console.log(`[${getTimestamp()}]`, config);
+      console.log(config);
       setBandChannelIndex(config.freq);
       minLapInput.value = (parseFloat(config.minLap) / 10).toFixed(1);
       updateMinLap(minLapInput, minLapInput.value);
@@ -846,7 +833,7 @@ window.onload = function (e) {
       clearInterval(timerInterval);
       timer.innerHTML = "00:00:00 s";
 
-      console.log(`[${getTimestamp()}] config  esp32BaseUrl：=` + esp32BaseUrl);
+      console.log("config  esp32BaseUrl：=" + esp32BaseUrl);
       clearLaps();
       createRssiChart();
       initEventStream();
@@ -858,7 +845,7 @@ window.onload = function (e) {
       }
     })
     .catch(error => {
-      console.error(`[${getTimestamp()}] 无法连接到ESP32设备:`, error);
+      console.error('无法连接到ESP32设备:', error);
       showToast('无法连接到ESP32设备。请确保：\n1. 已连接到ESP32的热点（QiYun-FPV_XXXX）\n2. 或者通过URL参数指定IP地址：?esp32ip=33.0.0.1', 'error');
     });
 };
@@ -958,7 +945,7 @@ function refreshNodes() {
     })
     .catch(e => {
       listEl.innerHTML = '<div>节点读取失败</div>';
-      console.error(`[${getTimestamp()}]`, e);
+      console.error(e);
     });
 }
 
@@ -994,7 +981,7 @@ function openTab(evt, tabName) {
         if (response.ok) rssiSending = true;
         return response.json();
       })
-      .then((response) => console.log(`[${getTimestamp()}] /timer/rssiStart:` + JSON.stringify(response)));
+      .then((response) => console.log("/timer/rssiStart:" + JSON.stringify(response)));
   } else if (rssiSending) {
     fetch(esp32BaseUrl + "/timer/rssiStop", {
       method: "POST",
@@ -1006,7 +993,7 @@ function openTab(evt, tabName) {
         if (response.ok) rssiSending = false;
         return response.json();
       })
-      .then((response) => console.log(`[${getTimestamp()}] /timer/rssiStop:` + JSON.stringify(response)));
+      .then((response) => console.log("/timer/rssiStop:" + JSON.stringify(response)));
   }
 }
 
@@ -1054,7 +1041,7 @@ function saveConfig() {
   })
     .then((response) => response.json())
     .then((response) => {
-      console.log(`[${getTimestamp()}] /config:` + JSON.stringify(response));
+      console.log("/config:" + JSON.stringify(response));
       // Check if critical network config changed (simple heuristic or flag from server?)
       // Since we don't know old values here easily without storing them, 
       // we rely on user action. 
@@ -1088,11 +1075,11 @@ function saveAndRestartConfig() {
       })
         .then((response) => response.json())
         .then((response) => {
-          console.log(`[${getTimestamp()}] /save_and_restart:` + JSON.stringify(response));
+          console.log("/save_and_restart:" + JSON.stringify(response));
           showToast("WiFi 配置已改变，设备正在重启以应用新网络设置。请在几秒后重新连接WiFi。", 'info');
         })
         .catch((error) => {
-          console.error(`[${getTimestamp()}] Error saving config:`, error);
+          console.error("Error saving config:", error);
           showToast("重启指令发送失败，请检查连接。尝试再次保存。", 'error');
         });
     } else {
@@ -1250,21 +1237,21 @@ function startTimer() {
     },
   })
     .then((response) => response.json())
-    .then((response) => console.log(`[${getTimestamp()}] /timer/start:` + JSON.stringify(response)));
+    .then((response) => console.log("/timer/start:" + JSON.stringify(response)));
 }
 
 function queueSpeak(htmlStr) {
   if (!audioEnabled) {
-      console.log(`[${getTimestamp()}] 语音未启用，无法播放:`, htmlStr);
-      return;
-    }
-    console.log(`[${getTimestamp()}] 添加到语音队列:`, htmlStr);
-    speakObjsQueue.push(htmlStr);
+    console.log('语音未启用，无法播放:', htmlStr);
+    return;
+  }
+  console.log('添加到语音队列:', htmlStr);
+  speakObjsQueue.push(htmlStr);
 }
 
 async function enableAudioLoop() {
   audioEnabled = true;
-  console.log(`[${getTimestamp()}] 语音循环已启用`);
+  console.log('语音循环已启用');
   while (audioEnabled) {
     if (speakObjsQueue.length > 0) {
       // 检查是否正在说话
@@ -1272,12 +1259,12 @@ async function enableAudioLoop() {
       try {
         isSpeakingFlag = $().articulate('isSpeaking');
       } catch (e) {
-        console.error(`[${getTimestamp()}] 检查说话状态时出错:`, e);
+        console.error('检查说话状态时出错:', e);
       }
       
       if (!isSpeakingFlag) {
         let htmlStr = speakObjsQueue.shift();
-        console.log(`[${getTimestamp()}] 开始播放语音:`, htmlStr);
+        console.log('开始播放语音:', htmlStr);
         doSpeak(htmlStr);
       }
     }
@@ -1290,7 +1277,7 @@ function disableAudioLoop() {
 }
 function generateAudio() {
   if (!audioEnabled) {
-    console.log(`[${getTimestamp()}] 语音未启用，无法测试`);
+    console.log('语音未启用，无法测试');
     // 自动启用语音
     enableAudioLoop();
     // 延迟一下确保语音循环启动
@@ -1319,11 +1306,11 @@ function doSpeak(htmlStr) {
     
     // 检查articulate插件是否可用
     if ($().articulate) {
-      console.log(`[${getTimestamp()}] articulate插件可用`);
+      console.log('articulate插件可用');
       
       // 检查可用语音
       const voices = $().articulate('getVoices');
-      console.log(`[${getTimestamp()}] 可用语音数量:`, voices.length);
+      console.log('可用语音数量:', voices.length);
       
       // 确保设置了语音
       if (!window.articulateVoice) {
@@ -1332,7 +1319,7 @@ function doSpeak(htmlStr) {
           if (voices[i].language.includes('zh')) {
             window.articulateVoice = voices[i].name;
             $().articulate('setVoice', 'name', window.articulateVoice);
-            console.log(`[${getTimestamp()}] 选择中文语音:`, window.articulateVoice);
+            console.log('选择中文语音:', window.articulateVoice);
             break;
           }
         }
@@ -1341,12 +1328,12 @@ function doSpeak(htmlStr) {
         if (!window.articulateVoice && voices.length > 0) {
           window.articulateVoice = voices[0].name;
           $().articulate('setVoice', 'name', window.articulateVoice);
-          console.log(`[${getTimestamp()}] 选择默认语音:`, window.articulateVoice);
+          console.log('选择默认语音:', window.articulateVoice);
         }
       }
       
       // 设置语音速率
-      console.log(`[${getTimestamp()}] 设置语音速率:`, announcerRate);
+      console.log('设置语音速率:', announcerRate);
       $().articulate('rate', announcerRate);
       
       // 使用articulate插件的speak方法播放语音
@@ -1356,18 +1343,18 @@ function doSpeak(htmlStr) {
       const checkSpeaking = setInterval(() => {
         if (!$().articulate('isSpeaking')) {
           clearInterval(checkSpeaking);
-          console.log(`[${getTimestamp()}] 语音播放完成`);
+          console.log('语音播放完成');
           // 移除临时元素
           document.body.removeChild(tempElement);
         }
       }, 200);
       
     } else {
-      console.error(`[${getTimestamp()}] articulate插件不可用`);
+      console.error('articulate插件不可用');
       // 降级方案：使用浏览器的Web Speech API
       const text = tempElement.textContent;
       if ('speechSynthesis' in window) {
-        console.log(`[${getTimestamp()}] 使用Web Speech API播放:`, text);
+        console.log('使用Web Speech API播放:', text);
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.rate = announcerRate;
         
@@ -1381,18 +1368,18 @@ function doSpeak(htmlStr) {
         }
         
         utterance.onend = () => {
-          console.log(`[${getTimestamp()}] Web Speech API播放完成`);
+          console.log('Web Speech API播放完成');
           document.body.removeChild(tempElement);
         };
         
         speechSynthesis.speak(utterance);
       } else {
-        console.error(`[${getTimestamp()}] 浏览器不支持语音合成`);
+        console.error('浏览器不支持语音合成');
         document.body.removeChild(tempElement);
       }
     }
   } catch (e) {
-    console.error(`[${getTimestamp()}] 播放语音时出错:`, e);
+    console.error('播放语音时出错:', e);
     // 确保移除临时元素
     if (tempElement && tempElement.parentNode) {
       document.body.removeChild(tempElement);
@@ -1430,7 +1417,7 @@ function stopRace() {
     },
   })
     .then((response) => response.json())
-    .then((response) => console.log(`[${getTimestamp()}] /timer/stop:` + JSON.stringify(response)));
+    .then((response) => console.log("/timer/stop:" + JSON.stringify(response)));
 
   stopRaceButton.disabled = true;
   startRaceButton.disabled = false;
@@ -1455,15 +1442,15 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function initEventStream() {
-  console.log(`[${getTimestamp()}] events  esp32BaseUrl：=` + esp32BaseUrl);
+  console.log("events  esp32BaseUrl：=" + esp32BaseUrl);
   if (!window.EventSource || !esp32BaseUrl) return;
   var source = new EventSource(esp32BaseUrl + "/events");
 
   source.addEventListener(
     "open",
     function (e) {
-      console.log(`[${getTimestamp()}] events open esp32BaseUrl：=` + esp32BaseUrl);
-      console.log(`[${getTimestamp()}] Events Connected`);
+      console.log("events open esp32BaseUrl：=" + esp32BaseUrl);
+      console.log("Events Connected");
     },
     false
   );
@@ -1471,9 +1458,9 @@ function initEventStream() {
   source.addEventListener(
     "error",
     function (e) {
-      console.log(`[${getTimestamp()}] events error  esp32BaseUrl：=` + esp32BaseUrl);
+      console.log("events error  esp32BaseUrl：=" + esp32BaseUrl);
       if (e.target.readyState != EventSource.OPEN) {
-        console.log(`[${getTimestamp()}] Events Disconnected`);
+        console.log("Events Disconnected");
       }
     },
     false
@@ -1486,7 +1473,7 @@ function initEventStream() {
       if (rssiBuffer.length > 10) {
         rssiBuffer.shift();
       }
-      console.log(`[${getTimestamp()}] rssi`, e.data, "buffer size", rssiBuffer.length);
+      console.log("rssi", e.data, "buffer size", rssiBuffer.length);
     },
     false
   );
@@ -1496,7 +1483,7 @@ function initEventStream() {
     function (e) {
       var lap = (parseFloat(e.data) / 1000).toFixed(2);
       addLap(lap);
-      console.log(`[${getTimestamp()}] lap raw:`, e.data, " formatted:", lap);
+      console.log("lap raw:", e.data, " formatted:", lap);
     },
     false
   );

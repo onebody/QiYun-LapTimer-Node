@@ -19,7 +19,7 @@ static AsyncWebServer server(80);
 static AsyncEventSource events("/events");
 
 static const char *wifi_hostname = "qylpt";
-static const char *wifi_ap_ssid_prefix = "qylpt";
+static const char *wifi_ap_ssid_prefix = "QYLPT";
 static const char *wifi_ap_password = "12345678";
 static const char *wifi_ap_address = "33.0.0.1";
 String wifi_ap_ssid;
