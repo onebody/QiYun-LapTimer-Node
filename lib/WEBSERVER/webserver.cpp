@@ -395,6 +395,8 @@ Chip:\n\
 \tFlashSize:\t%i\n\
 \tFlashSpeed:\t%iMHz\n\
 \tCPU Speed:\t%iMHz\n\
+Firmware:\n\
+\tVersion:\t%s\n\
 Network:\n\
 \tIP:\t%s\n\
 \tMAC:\t%s\n\
@@ -405,8 +407,18 @@ Battery Voltage:\t%0.1fv";
         snprintf(buf, sizeof(buf), format,
                  ESP.getFreeHeap(), ESP.getMinFreeHeap(), ESP.getHeapSize(), ESP.getMaxAllocHeap(), LittleFS.usedBytes(), LittleFS.totalBytes(),
                  ESP.getChipModel(), ESP.getChipRevision(), ESP.getChipCores(), ESP.getSdkVersion(), ESP.getFlashChipSize(), ESP.getFlashChipSpeed() / 1000000, getCpuFrequencyMhz(),
+                 FIRMWARE_VERSION,
                  WiFi.localIP().toString().c_str(), WiFi.macAddress().c_str(), configBuf, voltage);
         request->send(200, "text/plain", buf);
+        led->on(200);
+    });
+
+    server.on("/version", [this](AsyncWebServerRequest *request) {
+        char buf[64];
+        snprintf(buf, sizeof(buf), "{\"version\":\"%s\"}", FIRMWARE_VERSION);
+        AsyncWebServerResponse* res = request->beginResponse(200, "application/json", buf);
+        res->addHeader("Access-Control-Allow-Origin", "*");
+        request->send(res);
         led->on(200);
     });
 

@@ -20,8 +20,9 @@
   </head>
   <body>
     <div class="card">
-      <h1>骑云 竞速计时系统 · 固件更新</h1>
+      <h1>固件更新</h1>
       <p>选择固件文件并上传到设备，上传完成后设备将自动重启。</p>
+      <p id="version" class="hint">当前固件版本: <span>加载中...</span></p>
       <form id="otaForm" method="POST" action="/update" enctype="multipart/form-data">
         <label for="fw">选择固件文件</label>
         <input type="file" id="fw" name="firmware" accept=".bin,.bin.gz" required title="请选择固件文件 (.bin 或 .bin.gz)" />
@@ -36,12 +37,25 @@
       const form = document.getElementById('otaForm');
       const btn = document.getElementById('btn');
       const msg = document.getElementById('msg');
+      const versionSpan = document.querySelector('#version span');
+      
+      // 获取并显示当前固件版本号
+      window.addEventListener('load', function() {
+        fetch('/version')
+          .then(response => response.json())
+          .then(data => {
+            versionSpan.textContent = data.version;
+          })
+          .catch(error => {
+            versionSpan.textContent = '无法获取版本信息';
+          });
+        
+        fetch('/status').then(()=>{}).catch(()=>{});
+      });
+      
       form.addEventListener('submit', function(ev) {
         btn.disabled = true;
         msg.textContent = '正在上传，请稍候...';
-      });
-      window.addEventListener('load', function() {
-        fetch('/status').then(()=>{}).catch(()=>{});
       });
     </script>
   </body>

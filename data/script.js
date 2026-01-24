@@ -6,9 +6,33 @@ let minLapInput, alarmThreshold;
 
 // 在DOM加载完成后初始化元素
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeDOMElements);
+  document.addEventListener('DOMContentLoaded', () => {
+    initializeDOMElements();
+    fetchFirmwareVersion();
+  });
 } else {
   initializeDOMElements();
+  fetchFirmwareVersion();
+}
+
+// 获取并显示固件版本号
+function fetchFirmwareVersion() {
+  // 获取版本号显示元素
+  const versionElement = document.getElementById('firmware-version');
+  if (!versionElement) return;
+
+  // 发送请求获取版本号
+  fetch('/version')
+    .then(response => response.json())
+    .then(data => {
+      if (data && data.version) {
+        // 在"杭州骑云"后面显示版本号
+        versionElement.textContent = ` v${data.version}`;
+      }
+    })
+    .catch(error => {
+      console.error('获取固件版本号失败:', error);
+    });
 }
 
 function initializeDOMElements() {
