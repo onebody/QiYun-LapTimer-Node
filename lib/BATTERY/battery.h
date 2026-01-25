@@ -30,3 +30,4 @@ class BatteryMonitor {
     Buzzer *buz;
     Led *led;
 };
+
