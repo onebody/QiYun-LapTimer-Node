@@ -18,6 +18,7 @@ void LapTimer::init(Config *config, RX5808 *rx5808, Buzzer *buzzer, Led *l)
     stop();
     memset(rssi, 0, sizeof(rssi));
     lapEventHandler = nullptr; // 初始化回调函数指针为空
+    stopEventHandler = nullptr; // 初始化stop回调函数指针为空
 }
 
 void LapTimer::start()
@@ -47,6 +48,11 @@ void LapTimer::stop()
     lapPeakReset();
     buz->beep(500);
     led->on(500);
+    
+    // 触发stop事件回调
+    if (stopEventHandler != nullptr) {
+        stopEventHandler();
+    }
 }
 
 /**
@@ -277,4 +283,19 @@ uint16_t LapTimer::getCalibrationCrossingSamples()
 void LapTimer::setLapEventHandler(void (*handler)(uint32_t lapTime))
 {
     lapEventHandler = handler;
+}
+
+void LapTimer::setStopEventHandler(void (*handler)(void))
+{
+    stopEventHandler = handler;
+}
+
+uint32_t* LapTimer::getLapTimes()
+{
+    return lapTimes;
+}
+
+uint8_t LapTimer::getLapCount()
+{
+    return lapCount;
 }

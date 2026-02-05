@@ -34,6 +34,11 @@ class LapTimer {
 
     // 新增：设置lap事件回调函数
     void setLapEventHandler(void (*handler)(uint32_t lapTime));
+    // 新增：设置stop事件回调函数
+    void setStopEventHandler(void (*handler)(void));
+    // 新增：获取圈速数据
+    uint32_t* getLapTimes();
+    uint8_t getLapCount();
 
    private:
     laptimer_state_e state = STOPPED;
@@ -63,6 +68,8 @@ class LapTimer {
 
     // 新增：lap事件回调函数指针
     void (*lapEventHandler)(uint32_t lapTime);
+    // 新增：stop事件回调函数指针
+    void (*stopEventHandler)(void);
 
     void lapPeakCapture(uint32_t currentTimeMs);
     bool lapPeakCaptured();

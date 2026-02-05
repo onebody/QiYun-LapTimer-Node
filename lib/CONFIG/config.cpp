@@ -35,6 +35,13 @@ void Config::load(void) {
         if (conf.calibSamples < 10 || conf.calibSamples > 200) {
             conf.calibSamples = 20;
         }
+        strlcpy(conf.pilotId, "", sizeof(conf.pilotId));
+        modified = true;
+        write();
+        return;
+    }
+    if (version == 2) {
+        conf.version = CONFIG_VERSION | CONFIG_MAGIC;
         modified = true;
         write();
         return;
@@ -73,6 +80,7 @@ void Config::toJson(AsyncResponseStream& destination) {
     config["gateDiameterMm"] = getGateDiameterMm();
     config["calibSamples"] = conf.calibSamples;
     config["name"] = conf.pilotName;
+    config["pilotId"] = conf.pilotId;
     config["ssid"] = conf.ssid;
     config["pwd"] = conf.password;
     serializeJson(config, destination);
@@ -91,6 +99,7 @@ void Config::toJsonString(char* buf) {
     config["gateDiameterMm"] = getGateDiameterMm();
     config["calibSamples"] = conf.calibSamples;
     config["name"] = conf.pilotName;
+    config["pilotId"] = conf.pilotId;
     config["ssid"] = conf.ssid;
     config["pwd"] = conf.password;
     serializeJsonPretty(config, buf, 320);
@@ -146,6 +155,10 @@ void Config::fromJson(JsonObject source) {
         strlcpy(conf.pilotName, source["name"] | "", sizeof(conf.pilotName));
         modified = true;
     }
+    if (source["pilotId"] != conf.pilotId) {
+        strlcpy(conf.pilotId, source["pilotId"] | "", sizeof(conf.pilotId));
+        modified = true;
+    }
     if (source["ssid"] != conf.ssid) {
         strlcpy(conf.ssid, source["ssid"] | "", sizeof(conf.ssid));
         modified = true;
@@ -199,6 +212,14 @@ char* Config::getPassword() {
     return conf.password;
 }
 
+char* Config::getPilotName() {
+    return conf.pilotName;
+}
+
+char* Config::getPilotId() {
+    return conf.pilotId;
+}
+
 void Config::setDefaults(void) {
     DEBUG("Setting EEPROM defaults\n");
     // Reset everything to 0/false and then just set anything that zero is not appropriate
@@ -220,6 +241,7 @@ void Config::setDefaults(void) {
     // strlcpy(conf.password, "88190338", sizeof(conf.password));
 
     strlcpy(conf.pilotName, "", sizeof(conf.pilotName));
+    strlcpy(conf.pilotId, "", sizeof(conf.pilotId));
     modified = true;
     write();
 }

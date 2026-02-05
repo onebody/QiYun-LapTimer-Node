@@ -20,6 +20,10 @@ class Webserver {
     void sendLaptimeEvent(uint32_t lapTime);
     // 新增：lap事件处理函数
     static void lapEventHandler(uint32_t lapTime);
+    // 新增：stop事件处理函数
+    static void stopEventHandler();
+    // 新增：上传训练数据到平台
+    void uploadTrainingData();
 
     Config *conf;
     LapTimer *timer;

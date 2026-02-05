@@ -54,6 +54,7 @@ function initializeDOMElements() {
   gateDiameterDisplay = document.getElementById("gateDiameterDisplay");
   calibSamplesInput = document.getElementById("calibSamples");
   pilotNameInput = document.getElementById("pname");
+  pilotIdInput = document.getElementById("pilotId");
   ssidInput = document.getElementById("ssid");
   pwdInput = document.getElementById("pwd");
   minLapInput = document.getElementById("minLap");
@@ -846,6 +847,7 @@ window.onload = function (e) {
         calibSamplesInput.value = String(Number.isFinite(cs) && cs >= 10 ? cs : 20);
       }
       pilotNameInput.value = config.name;
+      pilotIdInput.value = config.pilotId || "";
       ssidInput.value = config.ssid;
       pwdInput.value = config.pwd;
       // store original wifi values to detect if they changed when saving
@@ -1059,6 +1061,7 @@ function saveConfig() {
       droneSize: getSelectedDroneSize(),
       calibSamples: getCalibrationSamplesTarget(),
       name: pilotNameInput.value,
+      pilotId: pilotIdInput.value,
       ssid: ssidInput.value,
       pwd: pwdInput.value,
     }),

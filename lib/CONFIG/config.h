@@ -79,7 +79,7 @@
 #define EEPROM_RESERVED_SIZE 256
 #define CONFIG_MAGIC_MASK (0b11U << 30)
 #define CONFIG_MAGIC (0b01U << 30)
-#define CONFIG_VERSION 2U
+#define CONFIG_VERSION 3U
 
 #define EEPROM_CHECK_TIME_MS 1000
 
@@ -95,6 +95,7 @@ typedef struct {
     uint8_t droneSize;
     uint16_t calibSamples;
     char pilotName[21];
+    char pilotId[21];
     char ssid[33];
     char password[33];
 } laptimer_config_t;
@@ -120,6 +121,8 @@ class Config {
     uint16_t getCalibrationSamples();
     char* getSsid();
     char* getPassword();
+    char* getPilotName();
+    char* getPilotId();
 
    private:
     laptimer_config_t conf;
