@@ -1,9 +1,7 @@
 #include "webserver.h"
 // 由于 ElegantOTA 为第三方库，其源码位于各自仓库（如 https://github.com/ayushsharma82/ElegantOTA）
-#ifdef ELEGANTOTA_AVAILABLE
-#include <ElegantOTA>
-#endif
-
+// 此处仅保留头文件包含，以启用 OTA 功能
+#include <ElegantOTA.h>
 #include <DNSServer.h>
 #include <ESPmDNS.h>
 #include <LittleFS.h>
@@ -864,10 +862,8 @@ Battery Voltage:\t%0.1fv";
     // 文件系统更新由ElegantOTA处理，不需要我们自己实现
     // ElegantOTA使用/ota/start路由，并通过mode=fs参数支持文件系统更新
 
-#ifdef ELEGANTOTA_AVAILABLE
     ElegantOTA.setAutoReboot(true);
     ElegantOTA.begin(&server);
-#endif
 
     server.begin();
 
