@@ -40,19 +40,21 @@ void LapTimer::stop()
 {
     DEBUG("LapTimer stopped\n");
     state = STOPPED;
-    lapCount = 0;
-    rssiCount = 0;
-    memset(lapTimes, 0, sizeof(lapTimes));
     lapAvailable = false;
     startTimeMs = 0;
     lapPeakReset();
     buz->beep(500);
     led->on(500);
     
-    // 触发stop事件回调
+    // 先触发stop事件回调，再清空数据
     if (stopEventHandler != nullptr) {
         stopEventHandler();
     }
+    
+    // 清空圈速数据
+    lapCount = 0;
+    rssiCount = 0;
+    memset(lapTimes, 0, sizeof(lapTimes));
 }
 
 /**

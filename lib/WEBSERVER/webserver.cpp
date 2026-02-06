@@ -1,7 +1,8 @@
 #include "webserver.h"
 // 由于 ElegantOTA 为第三方库，其源码位于各自仓库（如 https://github.com/ayushsharma82/ElegantOTA）
-// 此处暂时注释掉，以解决编译错误
-// #include <ElegantOTA>
+#ifdef ELEGANTOTA_AVAILABLE
+#include <ElegantOTA>
+#endif
 
 #include <DNSServer.h>
 #include <ESPmDNS.h>
@@ -11,6 +12,9 @@
 #include <HTTPClient.h>
 
 #include "debug.h"
+#include <time.h>
+
+
 
 static const uint8_t DNS_PORT = 53;
 static IPAddress netMsk(255, 255, 255, 0);
@@ -25,7 +29,7 @@ static const char *wifi_ap_password = "12345678";
 static const char *wifi_ap_address = "33.0.0.1";
 String wifi_ap_ssid;
 
-static const char *WEBSERVER_API_ADDRESS = "http://192.168.3.37:8888/api";
+// API地址现在从配置中获取
 
 // 新增：全局Webserver实例指针，用于静态回调函数中访问类方法
 static Webserver *gWebserverInstance = nullptr;
@@ -156,19 +160,45 @@ void Webserver::uploadTrainingData()
     
     // 构建JSON数据
     DynamicJsonDocument doc(1024);
+
+    String device_id  = String(wifi_ap_ssid_prefix) + "_" + WiFi.macAddress().substring(WiFi.macAddress().length() - 6);
+    device_id.replace(":", "");;
+
+    doc["device_id"] = device_id;
     doc["pilot_id"] = pilotId;
     doc["title"] = "训练测试";
-    doc["description"] = "计时器终端测试数据";
-    doc["flight_date"] = "2026-02-05";
-    doc["takeoff_time"] = "2026-02-05 12:00:00";
+    doc["description"] = "计时器终端数据";
+// 获取当前时间
+    time_t nowTime = time(NULL);
+    struct tm timeInfo;
+    localtime_r(&nowTime, &timeInfo);
+    
+    char dateStr[11];
+    char timeStr[20];
+    
+    // 格式化日期 (YYYY-MM-DD)
+    snprintf(dateStr, sizeof(dateStr), "%04d-%02d-%02d", 
+             timeInfo.tm_year + 1900, timeInfo.tm_mon + 1, timeInfo.tm_mday);
+    
+    // 格式化时间 (YYYY-MM-DD HH:MM:SS)
+    snprintf(timeStr, sizeof(timeStr), "%04d-%02d-%02d %02d:%02d:%02d", 
+             timeInfo.tm_year + 1900, timeInfo.tm_mon + 1, timeInfo.tm_mday,
+             timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_sec);
+    
+    
+    doc["flight_date"] = timeStr;
+    doc["takeoff_time"] = timeStr;
     doc["total_time"] = totalTime;
     doc["total_laps"] = lapCount;
     doc["average_lap_time"] = lapCount > 0 ? totalTime / lapCount : 0;
     doc["best_lap_time"] = bestLapTime;
+    doc["record_type"] = "system";
+    doc["pilot_name"] = pilotName;
+    doc["updated_at"] = timeStr; // 使用当前时间作为更新时间
     
-    // 添加圈速数据
+    // 添加圈速数据  去除首圈开圏的无效成绩
     JsonArray laps = doc.createNestedArray("laps");
-    for (uint8_t i = 0; i < lapCount; i++) {
+    for (uint8_t i = 1; i < lapCount; i++) {
         JsonObject lap = laps.createNestedObject();
         lap["lap_time"] = lapTimes[i];
     }
@@ -181,8 +211,10 @@ void Webserver::uploadTrainingData()
     
     // 发送HTTP请求
     HTTPClient http;
-    http.begin(String(WEBSERVER_API_ADDRESS) + "/terminal/pilot/score");
+    String apiAddress = conf->getApiAddress();
+    http.begin(apiAddress + "/training/device_upload");
     http.addHeader("Content-Type", "application/json");
+ 
     
     int httpCode = http.POST(jsonString);
     
@@ -516,6 +548,38 @@ static void startMDNS()
     MDNS.addService("http", "tcp", 80);
 }
 
+static void startNTP()
+{
+    // 配置NTP服务器
+    configTime(8 * 3600, 0, "pool.ntp.org", "time.nist.gov");
+    
+    DEBUG("Syncing time with NTP server...\n");
+    
+    // 等待时间同步
+    time_t now = time(NULL);
+    int retry = 0;
+    const int maxRetries = 10;
+    
+    while (now < 8 * 3600 * 2 && retry < maxRetries) {
+        delay(1000);
+        DEBUG(".");
+        now = time(NULL);
+        retry++;
+    }
+    
+    if (now > 8 * 3600 * 2) {
+        struct tm timeinfo;
+        localtime_r(&now, &timeinfo);
+        char timeStr[20];
+        snprintf(timeStr, sizeof(timeStr), "%04d-%02d-%02d %02d:%02d:%02d", 
+                 timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                 timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+        DEBUG("\nTime synced: %s\n", timeStr);
+    } else {
+        DEBUG("\nFailed to sync time with NTP server\n");
+    }
+}
+
 void Webserver::startServices()
 {
     if (servicesStarted)
@@ -526,6 +590,9 @@ void Webserver::startServices()
     }
 
     startLittleFS();
+    
+    // 启动NTP时间同步
+    startNTP();
 
     server.on("/", handleRoot);
     server.on("/generate_204", handleRoot); // handle Andriod phones doing shit to detect if there is 'real' internet and possibly dropping conn.
@@ -797,9 +864,10 @@ Battery Voltage:\t%0.1fv";
     // 文件系统更新由ElegantOTA处理，不需要我们自己实现
     // ElegantOTA使用/ota/start路由，并通过mode=fs参数支持文件系统更新
 
-    // 暂时注释掉ElegantOTA相关代码，以解决编译错误
-    // ElegantOTA.setAutoReboot(true);
-    // ElegantOTA.begin(&server);
+#ifdef ELEGANTOTA_AVAILABLE
+    ElegantOTA.setAutoReboot(true);
+    ElegantOTA.begin(&server);
+#endif
 
     server.begin();
 

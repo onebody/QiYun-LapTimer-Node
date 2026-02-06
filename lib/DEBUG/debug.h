@@ -3,9 +3,9 @@
 #include <Arduino.h>
 
 // 固件版本号定义
-#define FIRMWARE_VERSION "1.0.5"
+#define FIRMWARE_VERSION "1.0.7"
 // 文件系统版本号定义
-#define FILESYSTEM_VERSION "1.0.2"
+#define FILESYSTEM_VERSION "1.0.4"
 
 #define SERIAL_BAUD 115200
 #define DEBUG_OUT Serial

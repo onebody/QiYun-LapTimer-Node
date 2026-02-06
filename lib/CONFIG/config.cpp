@@ -83,11 +83,12 @@ void Config::toJson(AsyncResponseStream& destination) {
     config["pilotId"] = conf.pilotId;
     config["ssid"] = conf.ssid;
     config["pwd"] = conf.password;
+    config["apiAddress"] = conf.apiAddress;
     serializeJson(config, destination);
 }
 
 void Config::toJsonString(char* buf) {
-    DynamicJsonDocument config(320);
+    DynamicJsonDocument config(512);
     config["freq"] = conf.frequency;
     config["minLap"] = conf.minLap;
     config["alarm"] = conf.alarm;
@@ -102,7 +103,8 @@ void Config::toJsonString(char* buf) {
     config["pilotId"] = conf.pilotId;
     config["ssid"] = conf.ssid;
     config["pwd"] = conf.password;
-    serializeJsonPretty(config, buf, 320);
+    config["apiAddress"] = conf.apiAddress;
+    serializeJson(config, buf, 512);
 }
 
 void Config::fromJson(JsonObject source) {
@@ -167,6 +169,10 @@ void Config::fromJson(JsonObject source) {
         strlcpy(conf.password, source["pwd"] | "", sizeof(conf.password));
         modified = true;
     }
+    if (source["apiAddress"] != conf.apiAddress) {
+        strlcpy(conf.apiAddress, source["apiAddress"] | "http://192.168.31.136:8888/api", sizeof(conf.apiAddress));
+        modified = true;
+    }
 }
 
 uint16_t Config::getFrequency() {
@@ -220,6 +226,10 @@ char* Config::getPilotId() {
     return conf.pilotId;
 }
 
+char* Config::getApiAddress() {
+    return conf.apiAddress;
+}
+
 void Config::setDefaults(void) {
     DEBUG("Setting EEPROM defaults\n");
     // Reset everything to 0/false and then just set anything that zero is not appropriate
@@ -242,6 +252,7 @@ void Config::setDefaults(void) {
 
     strlcpy(conf.pilotName, "", sizeof(conf.pilotName));
     strlcpy(conf.pilotId, "", sizeof(conf.pilotId));
+    strlcpy(conf.apiAddress, "http://192.168.31.136:8888/api", sizeof(conf.apiAddress));
     modified = true;
     write();
 }

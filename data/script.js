@@ -55,6 +55,7 @@ function initializeDOMElements() {
   calibSamplesInput = document.getElementById("calibSamples");
   pilotNameInput = document.getElementById("pname");
   pilotIdInput = document.getElementById("pilotId");
+  apiAddressInput = document.getElementById("apiAddress");
   ssidInput = document.getElementById("ssid");
   pwdInput = document.getElementById("pwd");
   minLapInput = document.getElementById("minLap");
@@ -848,6 +849,7 @@ window.onload = function (e) {
       }
       pilotNameInput.value = config.name;
       pilotIdInput.value = config.pilotId || "";
+      apiAddressInput.value = config.apiAddress || "http://192.168.31.136:8888/api";
       ssidInput.value = config.ssid;
       pwdInput.value = config.pwd;
       // store original wifi values to detect if they changed when saving
@@ -1062,6 +1064,7 @@ function saveConfig() {
       calibSamples: getCalibrationSamplesTarget(),
       name: pilotNameInput.value,
       pilotId: pilotIdInput.value,
+      apiAddress: apiAddressInput.value,
       ssid: ssidInput.value,
       pwd: pwdInput.value,
     }),
