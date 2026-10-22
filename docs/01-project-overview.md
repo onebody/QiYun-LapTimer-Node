@@ -62,7 +62,7 @@ ESP32 让 RX5808 固定在与飞机图传相同的频段/频道上，持续读�
 
 ### 2.2 过圈判定状态机
 
-判定逻辑位于 `lib/laptimer.cpp`（`lapPeakCapture` / `lapPeakCaptured`，约 146–179 行）：
+判定逻辑位于 `lib/LAPTIMER/laptimer.cpp`（`lapPeakCapture` / `lapPeakCaptured`，约 146–179 行）：
 
 1. 滤波后的 RSSI **爬升越过 `enterRssi`（进入阈值）** → 进入峰值捕获状态；
 2. 捕获期间持续记录**最高点及其时刻**；
@@ -84,7 +84,7 @@ ESP32 让 RX5808 固定在与飞机图传相同的频段/频道上，持续读�
 
 ### 2.3 信号滤波
 
-RSSI 采样先经过一级**一维卡尔曼滤波**（`lib/kalman.cpp`）压掉 ADC 抖动，再进入上述判定。滤波强度由 `rssi_filter_q` / `rssi_filter_r` 控制（`laptimer.cpp` 顶部）。
+RSSI 采样先经过一级**一维卡尔曼滤波**（`lib/KALMAN/kalman.cpp`）压掉 ADC 抖动，再进入上述判定。滤波强度由 `rssi_filter_q` / `rssi_filter_r` 控制（`laptimer.cpp` 顶部）。
 
 ### 2.4 "开圈"约定
 
@@ -111,21 +111,21 @@ RSSI 采样先经过一级**一维卡尔曼滤波**（`lib/kalman.cpp`）压掉 
 - RX5808 **必须做 SPI 改造**（短接锡饼 + 引出 CH1/CH2/CH3），否则无法改频。
 - RX5808 的 `+5V` 引脚接 ESP32 的 `3V3` 而非 5V——这是本项目正常工作的前提。
 - RSSI 必须接在 **ADC1** 引脚上（经典 ESP32 为 GPIO33，仅 GPIO32–39 可用；GPIO25/26 属 ADC2，与 WiFi 共用不可用）。
-- 引脚定义唯一来源：`lib/config.h:28` 起的 `#define`；同文件 `:5` 顶部注释是接线表，两者需同步维护。
+- 引脚定义唯一来源：`lib/CONFIG/config.h:28` 起的 `#define`；同文件 `:5` 顶部注释是接线表，两者需同步维护。
 
 ### 3.2 固件模块划分
 
 ```
 src/main.cpp ────────── 装配所有模块 + 双核调度
  │
- └── lib/   17 个源文件同级平铺，由 builder.py 接入编译（PIO 默认不编译 lib/ 根）
-      ├── config.h/.cpp    ★ 引脚表 + EEPROM 配置结构体 + JSON 序列化
-      ├── RX5808.h/.cpp      调频（软件 SPI + 寄存器回读校验）与 RSSI 采样
-      ├── kalman.h/.cpp      一维卡尔曼滤波
-      ├── laptimer.h/.cpp  ★ 计时状态机、峰值捕获、校准采样
-      ├── webserver.h/.cpp ★ WiFi 状态机 + 全部 HTTP 路由 + SSE + 云端上传
-      ├── led/buzzer/battery.h/.cpp  非阻塞外设状态机
-      └── debug.h            版本宏（FIRMWARE_VERSION / FILESYSTEM_VERSION）与日志
+ └── lib/   9 个 PlatformIO 项目库，一模块一目录（PIO 只识别 lib/<子目录>）
+      ├── CONFIG/config.h/.cpp    ★ 引脚表 + EEPROM 配置结构体 + JSON 序列化
+      ├── RX5808/RX5808.h/.cpp      调频（软件 SPI + 寄存器回读校验）与 RSSI 采样
+      ├── KALMAN/kalman.h/.cpp      一维卡尔曼滤波
+      ├── LAPTIMER/laptimer.h/.cpp  ★ 计时状态机、峰值捕获、校准采样
+      ├── WEBSERVER/webserver.h/.cpp ★ WiFi 状态机 + 全部 HTTP 路由 + SSE + 云端上传
+      ├── LED/led、BUZZER/buzzer、BATTERY/battery .h/.cpp  非阻塞外设状态机
+      └── DEBUG/debug.h            版本宏（FIRMWARE_VERSION / FILESYSTEM_VERSION）与日志
 ```
 
 ### 3.3 运行时模型（三上下文）
@@ -149,7 +149,7 @@ RX5808 ──ADC──▶ 卡尔曼滤波 ──▶ 峰值判定状态机 ──
                      │
                      │ REST（按钮、保存配置）
                      ▼
-              ESPAsyncWebServer 路由（lib/webserver.cpp）
+              ESPAsyncWebServer 路由（lib/WEBSERVER/webserver.cpp）
                      │
                      │ POST <API地址>/training/device_upload（停止计时时，可选）
                      ▼
@@ -198,7 +198,7 @@ RX5808 ──ADC──▶ 卡尔曼滤波 ──▶ 峰值判定状态机 ──
 | app0 / app1 | 0x10000 / 0x150000 | 各 1.25 MB | 双 OTA 固件槽 |
 | spiffs | 0x290000 | 1.5 MB | 网页文件（分区名沿用 `spiffs`，实际类型由 `board_build.filesystem = littlefs` 决定） |
 
-参考值：一次全功能构建约 954 KB / 1.25 MB（73%）。
+实测参考值（2026-10-22，`pio run -e esp32dev`，espressif32 6.9.0）：固件占用 **1 146 969 B ≈ 1.09 MB / 1.25 MB 分区 = 87.5 %**，RAM 50 940 B / 327 680 B = 15.5 %。剩约 160 KB，加新功能前先 `pio run -e esp32dev` 看末尾百分比。
 
 ---
 
@@ -232,7 +232,7 @@ RX5808 ──ADC──▶ 卡尔曼滤波 ──▶ 峰值判定状态机 ──
 
 - **固件与网页更新接口没有任何鉴权**：同一局域网内任何设备都能刷写固件/文件系统。
 - **`GET /config` 明文回显 WiFi 密码**。
-- **串口启动日志也会打印已保存的 WiFi 名称与密码明文**（`lib/webserver.cpp:67` 的 DEBUG 输出）——向他人提交串口日志或 Issue 附件前先脱敏。
+- **串口启动日志也会打印已保存的 WiFi 名称与密码明文**（`lib/WEBSERVER/webserver.cpp:67` 的 DEBUG 输出）——向他人提交串口日志或 Issue 附件前先脱敏。
 - 请只在可信网络使用；**不要把设备暴露到公共 WiFi 或做端口映射**。
 - 比赛现场长期开放时，需自行给 ElegantOTA 加 `setAuth()`、给 `/config`、`/update` 等路由加口令校验。
 

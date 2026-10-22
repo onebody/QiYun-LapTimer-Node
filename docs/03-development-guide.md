@@ -10,8 +10,7 @@
 ```
 QiYun-LapTimer-Node/
 ├── src/main.cpp            装配所有模块 + 双核调度（见"运行时模型"）
-├── platformio.ini          4 个构建环境，依赖锁定版本；`extra_scripts = pre:builder.py`
-├── builder.py              把平铺在 lib/ 根的源码接入构建（PIO 默认只编译 lib/<子目录>）
+├── platformio.ini          4 个构建环境，依赖锁定版本
 ├── partitions.csv          双 OTA + LittleFS 分区表
 ├── data/                   ← 整个文件夹 = LittleFS 镜像（改这里只需 uploadfs）
 │   ├── index.html          四页签单页应用
@@ -20,15 +19,16 @@ QiYun-LapTimer-Node/
 │   ├── smoothie.js         实时折线图
 │   ├── articulate.min.js   浏览器 TTS 封装
 │   ├── jquery-3.7.1.min.js
+│   ├── favicon.ico         页面图标
 │   └── update/index.htm    OTA 上传页（被 iframe 内嵌）
-└── lib/            17 个源文件同级平铺（非 PIO 项目库，由 builder.py 接入编译）
-    ├── config.h/.cpp   ★ 引脚表 + EEPROM 结构体 + JSON 序列化
-    ├── RX5808.h/.cpp   调频（软件 SPI + 寄存器回读校验）与 RSSI 采样
-    ├── kalman.h/.cpp   一维卡尔曼滤波
-    ├── laptimer.h/.cpp ★ 计时状态机、峰值捕获、校准采样
-    ├── webserver.h/.cpp ★ WiFi 状态机 + 全部路由 + SSE + 云端上传
-    ├── led/buzzer/battery.h/.cpp  非阻塞外设状态机
-    └── debug.h    ★ FIRMWARE_VERSION / FILESYSTEM_VERSION / DEBUG 宏
+└── lib/            9 个项目库，一模块一目录（PIO 只识别 lib/<子目录>）
+    ├── CONFIG/config.h/.cpp     ★ 引脚表 + EEPROM 结构体 + JSON 序列化
+    ├── RX5808/RX5808.h/.cpp     调频（软件 SPI + 寄存器回读校验）与 RSSI 采样
+    ├── KALMAN/kalman.h/.cpp     一维卡尔曼滤波
+    ├── LAPTIMER/laptimer.h/.cpp ★ 计时状态机、峰值捕获、校准采样
+    ├── WEBSERVER/webserver.h/.cpp ★ WiFi 状态机 + 全部路由 + SSE + 云端上传
+    ├── LED/led、BUZZER/buzzer、BATTERY/battery .h/.cpp  非阻塞外设状态机
+    └── DEBUG/debug.h      ★ FIRMWARE_VERSION / FILESYSTEM_VERSION / DEBUG 宏
 ```
 
 ## 2. 运行时模型（改代码前务必理解）
@@ -50,7 +50,7 @@ QiYun-LapTimer-Node/
 
 所有响应默认带 `Access-Control-Allow-Origin: *`；全局响应头含 CSP、`X-Frame-Options: SAMEORIGIN`、`X-XSS-Protection`、`X-Content-Type-Options: nosniff`。**所有接口均无鉴权**（已知限制 #1），只可在可信网络暴露。
 
-代码位置：`lib/webserver.cpp:587` 起的路由注册区。
+代码位置：`lib/WEBSERVER/webserver.cpp:587` 起的路由注册区。
 
 ### 3.1 页面与探测
 
@@ -119,7 +119,7 @@ QiYun-LapTimer-Node/
 
 ## 5. 配置持久化（改配置相关代码必读）
 
-配置是一个 **POD 结构体直接 `EEPROM.put` 到 NVS**（`lib/config.cpp:61`），不是逐字段序列化：
+配置是一个 **POD 结构体直接 `EEPROM.put` 到 NVS**（`lib/CONFIG/config.cpp:61`），不是逐字段序列化：
 
 - 字段**顺序或类型变化会让老设备读出垃圾数据**；改结构体必须同时提升 `CONFIG_VERSION` 并在 `load()` 里为旧版本补迁移分支。
 - 头部 2 bit 为 magic（`CONFIG_MAGIC`），校验失败回落 `setDefaults()`。
@@ -138,13 +138,13 @@ QiYun-LapTimer-Node/
 
 | 想做的事 | 改哪里 |
 |---|---|
-| 适配自己的板子引脚 | `lib/config.h:28-83` 加 `#elif` 分支 + `platformio.ini` 加 env（**同步更新同文件 `:5` 的接线表注释**） |
-| 改过圈判定阈值逻辑 | `lib/laptimer.cpp:146-179` `lapPeakCapture` / `lapPeakCaptured` |
-| 换滤波强度 | `lib/laptimer.cpp:5-16` `rssi_filter_q`/`rssi_filter_r`；注意注释里的量级换算与实际传入值不一致，且 `setMeasurementNoise` 设的是 Q、`setProcessNoise` 设的是 R（与常规命名相反），改前实测 |
-| 新增 REST 接口 | `lib/webserver.cpp:595` 起的路由区（遵守第 2 节两条规矩） |
-| 改上传 payload | `lib/webserver.cpp:124` `uploadTrainingData()` |
+| 适配自己的板子引脚 | `lib/CONFIG/config.h:28-83` 加 `#elif` 分支 + `platformio.ini` 加 env（**同步更新同文件 `:5` 的接线表注释**） |
+| 改过圈判定阈值逻辑 | `lib/LAPTIMER/laptimer.cpp:146-179` `lapPeakCapture` / `lapPeakCaptured` |
+| 换滤波强度 | `lib/LAPTIMER/laptimer.cpp:5-16` `rssi_filter_q`/`rssi_filter_r`；注意注释里的量级换算与实际传入值不一致，且 `setMeasurementNoise` 设的是 Q、`setProcessNoise` 设的是 R（与常规命名相反），改前实测 |
+| 新增 REST 接口 | `lib/WEBSERVER/webserver.cpp:595` 起的路由区（遵守第 2 节两条规矩） |
+| 改上传 payload | `lib/WEBSERVER/webserver.cpp:124` `uploadTrainingData()` |
 | 改播报文案/语言 | `data/script.js:1327` `doSpeak()` |
-| 改版本显示 | `lib/debug.h:6-8` 两个宏（手动改，无 CI） |
+| 改版本显示 | `lib/DEBUG/debug.h:6-8` 两个宏（手动改，无 CI） |
 
 ## 7. 已知限制（动手前值得知道）
 
@@ -172,9 +172,9 @@ QiYun-LapTimer-Node/
 | `esp32-s3-devkitc-1` | ESP32-S3 DevKit C-1 | 240 MHz（额外依赖 ArduinoZip） |
 | `esp32doit-devkit-v1` | DOIT DevKit V1 | 240 MHz（ArduinoZip @0.2.0） |
 
-公共配置：framework=arduino、platform=espressif32@6.9.0、LittleFS、`partitions.csv`、dio、115200 上传/监视波特率，以及 `[env]` 段的 `extra_scripts = pre:builder.py`。
+公共配置：framework=arduino、platform=espressif32@6.9.0、LittleFS、`partitions.csv`、dio、115200 上传/监视波特率；`lib_compat_mode = strict` 下按 `#include` 精确拉取依赖。
 
-**源码布局的代价**：模块平铺在 `lib/` 根，而 PlatformIO 只把 `lib/<子目录>` 识别为项目库，所以 `builder.py` 必须存在——它把 `lib/` 追加进 `CPPPATH` 并用 `env.BuildSources("$BUILD_DIR/lib_flat", "lib")` 把这批 `.cpp` 编进固件。该调用必须放在 `pre:` 脚本里（Program 节点生成前才生效）。好处是加模块直接往 `lib/` 丢文件、不用建目录；坏处是删掉脚本 = 整个固件不再包含任何模块，`pio run` 只会剩 `main.cpp`。
+**源码布局**：每个模块独占一个 `lib/<大写模块名>/` 目录，PlatformIO 才会把它当项目库自动编译，并给它补齐 Arduino 核心与 libdeps 的头文件搜索路径。**不要把 `.cpp/.h` 平铺在 `lib/` 根**：PIO 会忽略这批散文件，`pio run` 只剩 `main.cpp`；即使再用 `extra_scripts` + `env.BuildSources("$BUILD_DIR/lib_flat", "lib")` 强行把它们编进固件，这些目标也拿不到库路径，实测在 `#include <WiFi.h>`、`#include <ArduinoJson.h>` 处直接 `fatal error: No such file or directory`（`lib_compat_mode` 改 soft 也一样）。加新模块请建 `lib/<NAME>/` 目录，别改构建脚本。
 
 ```bash
 pio run -e esp32dev                 # 编译固件
@@ -183,13 +183,17 @@ pio run -e esp32dev -t buildfs      # 只构建 littlefs.bin（OTA 用）
 pio run -e esp32dev -t uploadfs     # 烧文件系统
 ```
 
+实测结果（2026-10-22，`pio run -e esp32dev`，espressif32 6.9.0）：编译通过，**Flash 87.5 %（1 146 969 / 1 310 720 B）、RAM 15.5 %（50 940 / 327 680 B）**，产出 `.pio/build/esp32dev/firmware.bin`（1 153 552 B，含 bootloader + 分区表 + app）。另 3 个 env 未实测（需各自工具链）。
+
+> Apple Silicon 上的已知坑：espressif32 6.9.0 附带的 `tool-mklittlefs` 是 **x86_64** 二进制，未装 Rosetta 的 Mac 上 `-t buildfs` / `-t uploadfs` 会报 `Bad CPU type in executable`（`pio run` 本体不受影响）。装上 Rosetta（`softwareupdate --install-rosetta --agree-to-license`）即可。
+
 ### 版本与发布顺序
 
 | 项 | 位置 | 当前值 |
 |---|---|---|
-| 固件版本 | `lib/debug.h:6` `FIRMWARE_VERSION` | `1.0.9` |
-| 文件系统版本 | `lib/debug.h:8` `FILESYSTEM_VERSION` | `1.0.7` |
-| 配置结构版本 | `lib/config.h:88` `CONFIG_VERSION` | `4U` |
+| 固件版本 | `lib/DEBUG/debug.h:6` `FIRMWARE_VERSION` | `1.0.9` |
+| 文件系统版本 | `lib/DEBUG/debug.h:8` `FILESYSTEM_VERSION` | `1.0.7` |
+| 配置结构版本 | `lib/CONFIG/config.h:88` `CONFIG_VERSION` | `4U` |
 
 三个版本号**全部手工维护**，改完记得同步。发布顺序：改宏 → `pio run` → `pio run -t upload` → 若动了 `data/` 则 `pio run -t buildfs` + `-t uploadfs`，并把文件系统版本号写进 `.bin` 文件名，方便场地多机核对。
 

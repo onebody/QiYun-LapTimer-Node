@@ -22,11 +22,11 @@
 
 | 项 | 值 | 定义位置 |
 |---|---|---|
-| 固件版本 | 1.0.9 | [lib/debug.h](../lib/debug.h) `FIRMWARE_VERSION` |
-| 文件系统版本 | 1.0.7 | [lib/debug.h](../lib/debug.h) `FILESYSTEM_VERSION` |
-| 配置结构版本 | 4U | [lib/config.h](../lib/config.h) `CONFIG_VERSION` |
+| 固件版本 | 1.0.9 | [lib/DEBUG/debug.h](../lib/DEBUG/debug.h) `FIRMWARE_VERSION` |
+| 文件系统版本 | 1.0.7 | [lib/DEBUG/debug.h](../lib/DEBUG/debug.h) `FILESYSTEM_VERSION` |
+| 配置结构版本 | 4U | [lib/CONFIG/config.h](../lib/CONFIG/config.h) `CONFIG_VERSION` |
 | 许可证 / 版权 | MIT / Copyright (c) 2026 onebody | [LICENSE](../LICENSE)，第三方组件许可与引用明细见根 [README.md](../README.md) 的「许可与版权」 |
 
 > **与仓库根 README 的关系**：根 [README.md](../README.md) 是精简入口（项目是什么 + 五分钟跑通 + 文档索引 + 许可与版权），完整手册只在本目录。
 > **改动约定**：新增或修改使用说明、接线、校准、API、限制类内容，只改本目录文件，不要往根 README 里堆；反过来，许可/版权/引用致谢类的法律信息以根 README + `LICENSE` 为准，本目录只做指针。
-> **源码引用约定**：文中形如 `lib/laptimer.cpp:146` 的行号会随重构漂移；以源码为准，改代码时顺手核对被引用的行号。
+> **源码引用约定**：文中形如 `lib/LAPTIMER/laptimer.cpp:146` 的行号会随重构漂移；以源码为准，改代码时顺手核对被引用的行号。

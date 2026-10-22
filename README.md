@@ -66,11 +66,11 @@
 | 构建环境 | `esp32dev`、`esp32doit-devkit-v1`、`esp32-c3-devkitm-1`、`esp32-s3-devkitc-1`（[platformio.ini](platformio.ini)） |
 | 烧录 | `pio run -e esp32dev -t upload --upload-port <端口>` → `pio run -e esp32dev -t uploadfs --upload-port <端口>` |
 | 网页文件 | `data/` 整个目录 = LittleFS 镜像，改完只需重跑 `-t uploadfs` |
-| 引脚定义唯一来源 | [lib/config.h:28](lib/config.h#L28) 的 `#define`；同文件 [:5](lib/config.h#L5) 是接线表注释，**改引脚必须同时改这两处** |
+| 引脚定义唯一来源 | [lib/CONFIG/config.h:28](lib/CONFIG/config.h#L28) 的 `#define`；同文件 [:5](lib/CONFIG/config.h#L5) 是接线表注释，**改引脚必须同时改这两处** |
 | RSSI 引脚限制 | 必须落在 **ADC1**（经典 ESP32 用 GPIO33）；GPIO25/26 属 ADC2、与 WiFi 共用不可用；GPIO34/35/36/39 只能输入不能输出 |
 | 外壳打印 | Bambu Lab A1 · 0.4 喷嘴 · PETG · 层高 0.2 · 壁 4 · 填充 35 % gyroid · 树状支撑 · 无 brim，见 [docs/3d/](docs/3d/README.md#成型参数3mf-内实际记录值)；线上发布页 <https://www.crealitycloud.cn/model-detail/6ad9d953328846f6477a79e6> |
 | 上云接口 | `POST <API地址>/training/device_upload`，字段见 [01 §6](docs/01-project-overview.md#6-训练数据上云可选) |
-| 固件 / 文件系统 / 配置版本 | `1.0.9` / `1.0.7` / `4U`（[debug.h](lib/debug.h)、[config.h](lib/config.h)），**全部手工维护** |
+| 固件 / 文件系统 / 配置版本 | `1.0.9` / `1.0.7` / `4U`（[debug.h](lib/DEBUG/debug.h)、[config.h](lib/CONFIG/config.h)），**全部手工维护** |
 
 ---
 
@@ -80,7 +80,6 @@
 QiYun-LapTimer-Node/
 ├── src/main.cpp                装配所有模块 + 双上下文调度
 ├── platformio.ini              4 个构建环境，依赖锁定版本
-├── builder.py                  把平铺在 lib/ 根的源码接入构建（PIO 默认不编译 lib/ 根）
 ├── partitions.csv              双 OTA + LittleFS 分区表（铺满 4 MB）
 ├── data/                       ← 整个文件夹 = LittleFS 镜像（改这里只需 uploadfs）
 │   ├── index.html              四页签单页应用
@@ -88,9 +87,9 @@ QiYun-LapTimer-Node/
 │   ├── style.css / smoothie.js / articulate.min.js / jquery-3.7.1.min.js
 │   ├── favicon.ico             页面图标 + 首页 logo
 │   └── update/index.htm        OTA 上传页（被 iframe 内嵌）
-├── lib/                        固件全部模块，17 个源文件同级平铺：
-│                               config / RX5808 / kalman / laptimer / webserver
-│                               / led / buzzer / battery / debug
+├── lib/                        9 个 PlatformIO 项目库，每个模块一个同名子目录：
+│   ├── CONFIG/ RX5808/ KALMAN/ LAPTIMER/ WEBSERVER/
+│   └── LED/ BUZZER/ BATTERY/ DEBUG/     （共 17 个源文件）
 └── docs/                       ← 完整文档（本 README 只作入口）
     ├── README.md               文档中心
     ├── 01-project-overview.md  项目说明
