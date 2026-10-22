@@ -28,7 +28,7 @@
 | 文档 | 内容 | 适合谁 |
 |---|---|---|
 | [01-project-overview.md](docs/01-project-overview.md) | 产品定位、[工作原理](docs/01-project-overview.md#2-工作原理)、系统架构、网络模式、技术选型、上云链路、安全边界 | 想搞清"这是什么、怎么工作" |
-| [02-user-manual.md](docs/02-user-manual.md) | [物料](docs/02-user-manual.md#1-物料准备) → [接线](docs/02-user-manual.md#2-接线) → [烧录](docs/02-user-manual.md#3-固件烧录) → [首连](docs/02-user-manual.md#4-首次连接) → [配置](docs/02-user-manual.md#6-配置页参数详解) → [校准](docs/02-user-manual.md#7-校准最关键的一步) → [比赛](docs/02-user-manual.md#8-比赛流程) → [上云](docs/02-user-manual.md#9-训练数据上云) → [OTA](docs/02-user-manual.md#10-ota-在线更新免拆机) → [故障排除](docs/02-user-manual.md#12-故障排除速查) | DIY 组装者与赛场操作员 |
+| [02-user-manual.md](docs/02-user-manual.md) | [物料](docs/02-user-manual.md#1-物料准备) → [接线](docs/02-user-manual.md#2-接线) → [烧录](docs/02-user-manual.md#3-固件烧录)（含 [预编译镜像升级](docs/02-user-manual.md#34-用-release-预编译镜像升级免装-platformio)）→ [首连](docs/02-user-manual.md#4-首次连接) → [配置](docs/02-user-manual.md#6-配置页参数详解) → [校准](docs/02-user-manual.md#7-校准最关键的一步) → [比赛](docs/02-user-manual.md#8-比赛流程) → [上云](docs/02-user-manual.md#9-训练数据上云) → [OTA](docs/02-user-manual.md#10-ota-在线更新免拆机) → [故障排除](docs/02-user-manual.md#12-故障排除速查) | DIY 组装者与赛场操作员 |
 | [03-development-guide.md](docs/03-development-guide.md) | 项目结构、[三上下文运行时模型](docs/03-development-guide.md#2-运行时模型改代码前务必理解)、HTTP/SSE API 参考、配置持久化、改动落点、[已知限制](docs/03-development-guide.md#7-已知限制动手前值得知道) | 二次开发者、上位机/云平台对接方 |
 | [3d/README.md](docs/3d/README.md) | [外壳 3D 模型清单](docs/3d/README.md#文件清单)、实测几何尺寸、Bambu Studio 成型参数、换材料与验收要点 | 要打印外壳的人 |
 
@@ -65,6 +65,7 @@
 | 默认热点 / 密码 / 地址 | `QYLPT_XXXX`（`XXXX` = MAC 去冒号后的末 4 位十六进制）/ `12345678` / `http://33.0.0.1`、`http://qylpt.local` |
 | 构建环境 | `esp32dev`、`esp32doit-devkit-v1`、`esp32-c3-devkitm-1`、`esp32-s3-devkitc-1`（[platformio.ini](platformio.ini)） |
 | 烧录 | `pio run -e esp32dev -t upload --upload-port <端口>` → `pio run -e esp32dev -t uploadfs --upload-port <端口>` |
+| 预编译镜像 | [Releases](https://github.com/onebody/QiYun-LapTimer-Node/releases/latest) 每次给**两个独立 bin**：固件 app → `0x10000`、网页 LittleFS → `0x290000`。不含 `bootloader.bin` / `partitions.bin`，**刷不亮空白模块**，只用于已能开机的设备升级，见 [02 §3.4](docs/02-user-manual.md#34-用-release-预编译镜像升级免装-platformio) |
 | 网页文件 | `data/` 整个目录 = LittleFS 镜像，改完只需重跑 `-t uploadfs` |
 | 引脚定义唯一来源 | [lib/CONFIG/config.h:28](lib/CONFIG/config.h#L28) 的 `#define`；同文件 [:5](lib/CONFIG/config.h#L5) 是接线表注释，**改引脚必须同时改这两处** |
 | RSSI 引脚限制 | 必须落在 **ADC1**（经典 ESP32 用 GPIO33）；GPIO25/26 属 ADC2、与 WiFi 共用不可用；GPIO34/35/36/39 只能输入不能输出 |

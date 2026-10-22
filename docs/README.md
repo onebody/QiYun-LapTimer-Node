@@ -5,7 +5,7 @@
 | 文档 | 内容 | 适合谁 |
 |---|---|---|
 | [01-项目说明](01-project-overview.md) | 产品定位、RSSI 峰值计时原理、系统架构、网络模式、技术选型、上云链路、安全边界 | 想搞清"这是什么、怎么工作"的任何人 |
-| [02-操作手册](02-user-manual.md) | 物料 → 接线 → 烧录 → 首连 → 配置 → 校准 → 比赛 → 上云 → OTA → 维护 → 故障排除 | DIY 组装者与赛场操作员 |
+| [02-操作手册](02-user-manual.md) | 物料 → 接线 → 烧录（含 [预编译镜像升级](02-user-manual.md#34-用-release-预编译镜像升级免装-platformio)）→ 首连 → 配置 → 校准 → 比赛 → 上云 → OTA → 维护 → 故障排除 | DIY 组装者与赛场操作员 |
 | [03-开发指南](03-development-guide.md) | 项目结构、三上下文运行时模型、HTTP/SSE API 参考、配置持久化、改动落点、已知限制、发布约定 | 二次开发者、上位机/云平台对接方 |
 
 ## 这里是唯一出处
@@ -25,6 +25,7 @@
 | 固件版本 | 1.0.9 | [lib/DEBUG/debug.h](../lib/DEBUG/debug.h) `FIRMWARE_VERSION` |
 | 文件系统版本 | 1.0.7 | [lib/DEBUG/debug.h](../lib/DEBUG/debug.h) `FILESYSTEM_VERSION` |
 | 配置结构版本 | 4U | [lib/CONFIG/config.h](../lib/CONFIG/config.h) `CONFIG_VERSION` |
+| 预编译镜像 | [Releases v1.0.9](https://github.com/onebody/QiYun-LapTimer-Node/releases/tag/v1.0.9)：`QYLPT-Node-firmware-v1.0.9-esp32.bin`（app → `0x10000`）与 `QYLPT-Node-web-v1.0.7-littlefs.bin`（网页 → `0x290000`），两个独立文件 | [02 §3.4](02-user-manual.md#34-用-release-预编译镜像升级免装-platformio)、[03 §8](03-development-guide.md#对外发-github-release预编译镜像) |
 | 许可证 / 版权 | MIT / Copyright (c) 2026 onebody | [LICENSE](../LICENSE)，第三方组件许可与引用明细见根 [README.md](../README.md) 的「许可与版权」 |
 
 > **与仓库根 README 的关系**：根 [README.md](../README.md) 是精简入口（项目是什么 + 五分钟跑通 + 文档索引 + 许可与版权），完整手册只在本目录。

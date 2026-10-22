@@ -15,6 +15,8 @@
 
 最快检查点：上电后应听到**一长亮 + 短叫**（LED 亮 400 ms、蜂鸣 200 ms），手机能搜到 `QYLPT_XXXX` 热点并打开页面——看到首页即说明硬件和烧录全部正确。
 
+已经能正常开机的设备做版本升级，可以跳过 ①–③，直接用 [§3.4 的 Release 预编译镜像](#34-用-release-预编译镜像升级免装-platformio)。
+
 ---
 
 ## 1. 物料准备
@@ -111,6 +113,35 @@ pio run -e esp32dev -t uploadfs --upload-port /dev/cu.SLAB_USBtoUART
 ### 3.3 容量红线
 
 app 分区各 1.25 MB，实测一次全功能构建占 **1.09 MB（87.5 %）**，只剩约 160 KB。**加较大的新功能前先看编译末尾的 Flash 百分比**。
+
+### 3.4 用 Release 预编译镜像升级（免装 PlatformIO）
+
+已经能正常开机的设备做版本升级，不必装工具链——[GitHub Releases](https://github.com/onebody/QiYun-LapTimer-Node/releases/latest) 每次发布给两个**互相独立**的 bin，分别对应分区表里的 app 与文件系统两个分区：
+
+| 文件（以 v1.0.9 为例） | 内容 | 大小 | 烧写地址 |
+|---|---|---|---|
+| `QYLPT-Node-firmware-v1.0.9-esp32.bin` | 固件 app 镜像 | 1 153 552 B | `0x10000`（`app0`） |
+| `QYLPT-Node-web-v1.0.7-littlefs.bin` | 网页 LittleFS 镜像（`data/` 全部 8 个文件） | 1 507 328 B | `0x290000`（`spiffs`） |
+
+只改了前端就只刷网页那个，反之亦然；`CONFIG_VERSION` 不变时 WiFi、校准阈值、飞手信息都留在 NVS 里，不会因为刷镜像而丢。
+
+**刷法一 · 设备网页 OTA（推荐，免拆机）**：「更新」页签内嵌的上传界面，默认是固件模式，刷网页要切到文件系统模式，细节见 [§10 OTA 在线更新](#10-ota-在线更新免拆机)。
+
+**刷法二 · esptool 命令行**：
+
+```bash
+# 只更新固件
+esptool.py --chip esp32 -b 115200 -p <串口> write_flash 0x10000 QYLPT-Node-firmware-v1.0.9-esp32.bin
+
+# 只更新网页
+esptool.py --chip esp32 -b 115200 -p <串口> write_flash 0x290000 QYLPT-Node-web-v1.0.7-littlefs.bin
+```
+
+刷前拿发布页正文里的 SHA256 核对下载结果（macOS/Linux `shasum -a 256 <文件>`，Windows `certutil -hashfile <文件> SHA256`）；刷完访问 `http://<设备IP>/version`，两个版本号都要对得上。
+
+> ⚠️ **预编译镜像刷不亮全新空白模块**。Release 只含 app 与文件系统两块，不含 `bootloader.bin`（`0x1000`）、`partitions.bin`（`0x8000`）、`boot_app0.bin`（`0xe000`），只往 `0x10000` 写 app 是起不来的。首次上机仍要走 [§3.1 环境搭建](#31-环境搭建) + [§3.2 编译与烧录](#32-编译与烧录两条命令缺一不可)。
+>
+> ⚠️ Release 里的 bin **只在 `esp32dev`（经典 ESP32-WROOM）上实测编译通过**。C3 / S3 / DOIT 的引脚表和依赖都不同，请按自己的环境构建，不要直接刷这份。
 
 ---
 
@@ -259,6 +290,8 @@ Web 页面共四个页签：
 | 固件 | 固件更新 | `.pio/build/<env>/firmware.bin` | 上传成功后自动重启 |
 | 网页 | 文件系统更新 | `littlefs.bin`（`pio run -t buildfs` 产物） | 也可用 `/update/fs/single` 单文件覆盖 |
 
+不想装工具链就直接用 [§3.4](#34-用-release-预编译镜像升级免装-platformio) 里 Release 附带的两个同名 bin，页面与文件一一对应。
+
 查看当前版本：「更新」页签顶部，或访问 `http://<设备IP>/version`。
 
 > 发布命名建议：把文件系统版本号加进 `.bin` 文件名，方便场地多机核对版本。
@@ -281,6 +314,7 @@ Web 页面共四个页签：
 | 现象 | 排查顺序 |
 |---|---|
 | 找不到 `QYLPT_XXXX` 热点 | ① 板子电源 LED 是否亮 ② 是否烧过 `uploadfs` ③ 换 USB 线/口（部分线只能充电） |
+| 刷了 Release 的 bin 开不了机 | 多半是全新空白模块：Release 只含 app 与文件系统，缺 bootloader/分区表，按 [§3.4](#34-用-release-预编译镜像升级免装-platformio) 的警告改走 §3.2，或先刷一台已出厂固件再走 OTA |
 | 页面空白 / index.html missing | 没烧文件系统镜像，重跑 `pio run -e <env> -t uploadfs` |
 | 连上 WiFi 打不开页面 | 直接输 `http://33.0.0.1`；iOS 先"取消"捕获页再开浏览器 |
 | STA 连不上家里路由 | ① 仅支持 2.4 GHz ② 密码含特殊字符先试纯字母 ③ 3 次失败自动降级回 AP（蜂鸣 1 s） |

@@ -183,9 +183,9 @@ pio run -e esp32dev -t buildfs      # 只构建 littlefs.bin（OTA 用）
 pio run -e esp32dev -t uploadfs     # 烧文件系统
 ```
 
-实测结果（2026-10-22，`pio run -e esp32dev`，espressif32 6.9.0）：编译通过，**Flash 87.5 %（1 146 969 / 1 310 720 B）、RAM 15.5 %（50 940 / 327 680 B）**，产出 `.pio/build/esp32dev/firmware.bin`（1 153 552 B，含 bootloader + 分区表 + app）。另 3 个 env 未实测（需各自工具链）。
+实测结果（2026-10-22，`pio run -e esp32dev`，espressif32 6.9.0）：编译通过，**Flash 87.5 %（1 146 969 / 1 310 720 B）、RAM 15.5 %（50 940 / 327 680 B）**，产出 app 镜像 `.pio/build/esp32dev/firmware.bin`（1 153 552 B，烧写地址 `0x10000`）。同目录的 `bootloader.bin`（`0x1000`）、`partitions.bin`（`0x8000`）是各自独立的文件，`firmware.bin` 里**不含**它们。另 3 个 env 未实测（需各自工具链）。
 
-> Apple Silicon 上的已知坑：espressif32 6.9.0 附带的 `tool-mklittlefs` 是 **x86_64** 二进制，未装 Rosetta 的 Mac 上 `-t buildfs` / `-t uploadfs` 会报 `Bad CPU type in executable`（`pio run` 本体不受影响）。装上 Rosetta（`softwareupdate --install-rosetta --agree-to-license`）即可。
+> Apple Silicon 上的已知坑：espressif32 6.9.0 附带的 `tool-mklittlefs` 是 **x86_64** 二进制，未装 Rosetta 的 Mac 上 `-t buildfs` / `-t uploadfs` 会报 `Bad CPU type in executable`（`pio run` 本体不受影响）。两条出路：装 Rosetta（`softwareupdate --install-rosetta --agree-to-license`），或用上游源码自编一份 arm64 的 `mklittlefs` 顶替 `~/.platformio/packages/tool-mklittlefs/mklittlefs`。
 
 ### 版本与发布顺序
 
@@ -196,6 +196,26 @@ pio run -e esp32dev -t uploadfs     # 烧文件系统
 | 配置结构版本 | `lib/CONFIG/config.h:88` `CONFIG_VERSION` | `4U` |
 
 三个版本号**全部手工维护**，改完记得同步。发布顺序：改宏 → `pio run` → `pio run -t upload` → 若动了 `data/` 则 `pio run -t buildfs` + `-t uploadfs`，并把文件系统版本号写进 `.bin` 文件名，方便场地多机核对。
+
+### 对外发 GitHub Release（预编译镜像）
+
+给用户免工具链升级用，产物是**两个独立文件**（app 与文件系统各一个），不要合并成一个整片镜像——合并包会把 `bootloader` / `partitions` 也塞进去，用户按 `0x10000` 刷就刷歪。
+
+```bash
+pio run -e esp32dev && pio run -e esp32dev -t buildfs
+cp .pio/build/esp32dev/firmware.bin QYLPT-Node-firmware-v<FIRMWARE_VERSION>-esp32.bin
+cp .pio/build/esp32dev/littlefs.bin QYLPT-Node-web-v<FILESYSTEM_VERSION>-littlefs.bin
+shasum -a 256 QYLPT-Node-*.bin          # 校验值贴进发布说明
+git push origin main                    # 先确保要发布的提交已在远端
+gh release create v<FIRMWARE_VERSION> --target main \
+  --title "v<FIRMWARE_VERSION> · 骑云 FPV 竞速计时系统（ESP32 单节点）" \
+  --notes-file <发布说明.md> <两个 bin>
+```
+
+- 标签用 `v` + `FIRMWARE_VERSION`，打在含最新 `data/` 与固件的那个提交上；文件系统版本只体现在文件名里。
+- 发布说明必须写清：两个文件各自的**烧写地址**（`0x10000` / `0x290000`）、SHA256、"缺 `bootloader.bin` / `partitions.bin` / `boot_app0.bin`，刷不亮空白模块"，以及**只验证过哪些 env**。
+- 命名与地址口径以 [02 §3.4](02-user-manual.md#34-用-release-预编译镜像升级免装-platformio) 为准，改这里要同步改那里。
+- 现行发布：`v1.0.9`（固件 1.0.9 / 网页 1.0.7），打在提交 `e8be1f5` 上。<https://github.com/onebody/QiYun-LapTimer-Node/releases/tag/v1.0.9>
 
 ### 验证约定
 
