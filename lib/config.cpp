@@ -1,0 +1,260 @@
+#include "config.h"
+
+#include <EEPROM.h>
+
+#include "debug.h"
+
+void Config::init(void) {
+    if (sizeof(laptimer_config_t) > EEPROM_RESERVED_SIZE) {
+        DEBUG("Config size too big, adjust reserved EEPROM size\n");
+        return;
+    }
+
+    EEPROM.begin(EEPROM_RESERVED_SIZE);  // Size of EEPROM
+    load();                              // Override default settings from EEPROM
+
+    checkTimeMs = millis();
+
+    DEBUG("EEPROM Init Successful\n");
+}
+
+void Config::load(void) {
+    modified = false;
+    EEPROM.get(0, conf);
+
+    uint32_t version = 0xFFFFFFFF;
+    if ((conf.version & CONFIG_MAGIC_MASK) == CONFIG_MAGIC) {
+        version = conf.version & ~CONFIG_MAGIC_MASK;
+    }
+
+    if (version == 1) {
+        conf.version = CONFIG_VERSION | CONFIG_MAGIC;
+        if (conf.droneSize != 2 && conf.droneSize != 5) {
+            conf.droneSize = 5;
+        }
+        if (conf.calibSamples < 10 || conf.calibSamples > 200) {
+            conf.calibSamples = 20;
+        }
+        strlcpy(conf.pilotId, "", sizeof(conf.pilotId));
+        modified = true;
+        write();
+        return;
+    }
+    if (version == 2) {
+        conf.version = CONFIG_VERSION | CONFIG_MAGIC;
+        modified = true;
+        write();
+        return;
+    }
+
+    // If version is not current, reset to defaults
+    if (version != CONFIG_VERSION) {
+        setDefaults();
+    }
+}
+
+void Config::write(void) {
+    if (!modified) return;
+
+    DEBUG("Writing to EEPROM\n");
+
+    EEPROM.put(0, conf);
+    EEPROM.commit();
+
+    DEBUG("Writing to EEPROM done\n");
+
+    modified = false;
+}
+
+void Config::toJson(AsyncResponseStream& destination) {
+    // Use https://arduinojson.org/v6/assistant to estimate memory
+    DynamicJsonDocument config(320);
+    config["freq"] = conf.frequency;
+    config["minLap"] = conf.minLap;
+    config["alarm"] = conf.alarm;
+    config["anType"] = conf.announcerType;
+    config["anRate"] = conf.announcerRate;
+    config["enterRssi"] = conf.enterRssi;
+    config["exitRssi"] = conf.exitRssi;
+    config["droneSize"] = conf.droneSize;
+    config["gateDiameterMm"] = getGateDiameterMm();
+    config["calibSamples"] = conf.calibSamples;
+    config["name"] = conf.pilotName;
+    config["pilotId"] = conf.pilotId;
+    config["ssid"] = conf.ssid;
+    config["pwd"] = conf.password;
+    config["apiAddress"] = conf.apiAddress;
+    serializeJson(config, destination);
+}
+
+void Config::toJsonString(char* buf) {
+    DynamicJsonDocument config(512);
+    config["freq"] = conf.frequency;
+    config["minLap"] = conf.minLap;
+    config["alarm"] = conf.alarm;
+    config["anType"] = conf.announcerType;
+    config["anRate"] = conf.announcerRate;
+    config["enterRssi"] = conf.enterRssi;
+    config["exitRssi"] = conf.exitRssi;
+    config["droneSize"] = conf.droneSize;
+    config["gateDiameterMm"] = getGateDiameterMm();
+    config["calibSamples"] = conf.calibSamples;
+    config["name"] = conf.pilotName;
+    config["pilotId"] = conf.pilotId;
+    config["ssid"] = conf.ssid;
+    config["pwd"] = conf.password;
+    config["apiAddress"] = conf.apiAddress;
+    serializeJson(config, buf, 512);
+}
+
+void Config::fromJson(JsonObject source) {
+    if (source["freq"] != conf.frequency) {
+        conf.frequency = source["freq"];
+        modified = true;
+    }
+    if (source["minLap"] != conf.minLap) {
+        conf.minLap = source["minLap"];
+        modified = true;
+    }
+    if (source["alarm"] != conf.alarm) {
+        conf.alarm = source["alarm"];
+        modified = true;
+    }
+    if (source["anType"] != conf.announcerType) {
+        conf.announcerType = source["anType"];
+        modified = true;
+    }
+    if (source["anRate"] != conf.announcerRate) {
+        conf.announcerRate = source["anRate"];
+        modified = true;
+    }
+    if (source["enterRssi"] != conf.enterRssi) {
+        conf.enterRssi = source["enterRssi"];
+        modified = true;
+    }
+    if (source["exitRssi"] != conf.exitRssi) {
+        conf.exitRssi = source["exitRssi"];
+        modified = true;
+    }
+    if (source.containsKey("droneSize")) {
+        uint8_t ds = source["droneSize"];
+        if (ds != 2 && ds != 5) ds = 5;
+        if (ds != conf.droneSize) {
+            conf.droneSize = ds;
+            modified = true;
+        }
+    }
+    if (source.containsKey("calibSamples")) {
+        uint16_t cs = source["calibSamples"];
+        if (cs < 10) cs = 10;
+        if (cs > 200) cs = 200;
+        if (cs != conf.calibSamples) {
+            conf.calibSamples = cs;
+            modified = true;
+        }
+    }
+    if (source["name"] != conf.pilotName) {
+        strlcpy(conf.pilotName, source["name"] | "", sizeof(conf.pilotName));
+        modified = true;
+    }
+    if (source["pilotId"] != conf.pilotId) {
+        strlcpy(conf.pilotId, source["pilotId"] | "", sizeof(conf.pilotId));
+        modified = true;
+    }
+    if (source["ssid"] != conf.ssid) {
+        strlcpy(conf.ssid, source["ssid"] | "", sizeof(conf.ssid));
+        modified = true;
+    }
+    if (source["pwd"] != conf.password) {
+        strlcpy(conf.password, source["pwd"] | "", sizeof(conf.password));
+        modified = true;
+    }
+    if (source["apiAddress"] != conf.apiAddress) {
+        strlcpy(conf.apiAddress, source["apiAddress"] | "http://192.0.2.10:8888/api", sizeof(conf.apiAddress));
+        modified = true;
+    }
+}
+
+uint16_t Config::getFrequency() {
+    return conf.frequency;
+}
+
+uint32_t Config::getMinLapMs() {
+    return conf.minLap * 100;
+}
+
+uint8_t Config::getAlarmThreshold() {
+    return conf.alarm;
+}
+
+uint8_t Config::getEnterRssi() {
+    return conf.enterRssi;
+}
+
+uint8_t Config::getExitRssi() {
+    return conf.exitRssi;
+}
+
+uint8_t Config::getDroneSize() {
+    if (conf.droneSize != 2 && conf.droneSize != 5) return 5;
+    return conf.droneSize;
+}
+
+uint16_t Config::getGateDiameterMm() {
+    return getDroneSize() == 2 ? 1000 : 2000;
+}
+
+uint16_t Config::getCalibrationSamples() {
+    if (conf.calibSamples < 10) return 10;
+    if (conf.calibSamples > 200) return 200;
+    return conf.calibSamples;
+}
+
+char* Config::getSsid() {
+    return conf.ssid;
+}
+
+char* Config::getPassword() {
+    return conf.password;
+}
+
+char* Config::getPilotName() {
+    return conf.pilotName;
+}
+
+char* Config::getPilotId() {
+    return conf.pilotId;
+}
+
+char* Config::getApiAddress() {
+    return conf.apiAddress;
+}
+
+void Config::setDefaults(void) {
+    DEBUG("Setting EEPROM defaults\n");
+    // Reset everything to 0/false and then just set anything that zero is not appropriate
+    memset(&conf, 0, sizeof(conf));
+    conf.version = CONFIG_VERSION | CONFIG_MAGIC;
+    conf.frequency = 1111;
+    conf.minLap = 100;
+    conf.alarm = 36;
+    conf.announcerType = 2;
+    conf.announcerRate = 10;
+    conf.enterRssi = 120;
+    conf.exitRssi = 100;
+    conf.droneSize = 5;
+    conf.calibSamples = 20;
+
+    strlcpy(conf.pilotName, "", sizeof(conf.pilotName));
+    strlcpy(conf.pilotId, "", sizeof(conf.pilotId));
+    strlcpy(conf.apiAddress, "http://127.0.0.1:8888/api", sizeof(conf.apiAddress));
+    modified = true;
+    write();
+}
+
+void Config::handleEeprom(uint32_t currentTimeMs) {
+    if (modified && ((currentTimeMs - checkTimeMs) > EEPROM_CHECK_TIME_MS)) {
+        checkTimeMs = currentTimeMs;
+        write();
+    }
+}
