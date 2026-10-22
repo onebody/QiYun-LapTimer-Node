@@ -160,6 +160,7 @@ QiYun-LapTimer-Node/
 | 8 | 穿越校准接口已废弃但状态位不复位 | `webserver.cpp:717` | 前端 `stopCalibCrossing()` 恒拿 `maxPeak=0`；新向导不依赖，可忽略 |
 | 9 | `WAITING` 状态、`isLapAvailable()` 为死代码；前端还在调用不存在的 `/nodes` 接口 | `laptimer.cpp:107`、`script.js:962` | 无功能影响；`/nodes` 未在固件注册，前端请求恒 404。多节点计时尚未实现，仅前端预留 |
 | 10 | 无自动化测试 | 仓库不含 `test/` 目录，也没有 CI | 改计时逻辑请自行做实录回放验证 |
+| 11 | 校准向导第 3 步「峰值 / 信号强度差」恒为 `-Infinity` | 固件 `laptimer.cpp:83-86` 底噪取窗口最大值，前端 `script.js:381` 却按「大于底噪 + 5」筛峰值，两个窗口重叠 → 结果集为空 | 推荐配置不可信，且向导结束会自动 `saveConfig()`（`script.js:405`）写入这条路径算出的阈值；现场处置见 [图文指南 §5](webui-guide/README.md#5-校准页三步向导) |
 
 ## 8. 构建与发布
 

@@ -31,10 +31,11 @@
 | [02-user-manual.md](docs/02-user-manual.md) | [物料](docs/02-user-manual.md#1-物料准备) → [接线](docs/02-user-manual.md#2-接线) → [烧录](docs/02-user-manual.md#3-固件烧录)（含 [预编译镜像升级](docs/02-user-manual.md#34-用-release-预编译镜像升级免装-platformio)）→ [首连](docs/02-user-manual.md#4-首次连接) → [配置](docs/02-user-manual.md#6-配置页参数详解) → [校准](docs/02-user-manual.md#7-校准最关键的一步) → [比赛](docs/02-user-manual.md#8-比赛流程) → [上云](docs/02-user-manual.md#9-训练数据上云) → [OTA](docs/02-user-manual.md#10-ota-在线更新免拆机) → [故障排除](docs/02-user-manual.md#12-故障排除速查) | DIY 组装者与赛场操作员 |
 | [03-development-guide.md](docs/03-development-guide.md) | 项目结构、[三上下文运行时模型](docs/03-development-guide.md#2-运行时模型改代码前务必理解)、HTTP/SSE API 参考、配置持久化、改动落点、[已知限制](docs/03-development-guide.md#7-已知限制动手前值得知道) | 二次开发者、上位机/云平台对接方 |
 | [3d/README.md](docs/3d/README.md) | [外壳 3D 模型清单](docs/3d/README.md#文件清单)、实测几何尺寸、Bambu Studio 成型参数、换材料与验收要点 | 要打印外壳的人 |
+| [webui-guide/README.md](docs/webui-guide/README.md) | 配置/比赛/校准/更新四个页签的[逐步截图操作](docs/webui-guide/README.md#0-打开页面与四个页签)、[按钮状态速查](docs/webui-guide/README.md#7-比赛页按钮状态速查)、[校准第 3 步已知缺陷](docs/webui-guide/README.md#第-3-步结果确认与保存)、无真机 mock 复现方法 | 第一次面对网页的飞手与赛场裁判 |
 
-这四份 Markdown 是**所有说明内容的唯一出处**——仓库里不再有并行的 HTML 副本或第二份手册。GitHub 页面会直接渲染它们；离线阅读用任意 Markdown 查看器（`cat docs/02-user-manual.md` 也完全可读），需要打印就在编辑器里导出。
+这些 Markdown 是**所有说明内容的唯一出处**——仓库里不再有并行的 HTML 副本或第二份手册。GitHub 页面会直接渲染它们；离线阅读用任意 Markdown 查看器（`cat docs/02-user-manual.md` 也完全可读），需要打印就在编辑器里导出。
 
-**该看哪份？** 想焊一台 → 02；想知道为什么这么判圈 → 01；想改代码或对接云端 → 03。
+**该看哪份？** 想焊一台 → 02；想知道为什么这么判圈 → 01；想改代码或对接云端 → 03；打开网页不知道点哪里 → 图文指南。
 
 ---
 
