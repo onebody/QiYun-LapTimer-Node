@@ -5,10 +5,10 @@
 const uint16_t rssi_filter_q = 2000; //  0.01 - 655.36
 const uint16_t rssi_filter_r = 40;   // 0.0001 - 65.536
 
-void LapTimer::init(Config *config, RX5808 *rx5808, Buzzer *buzzer, Led *l)
+void LapTimer::init(Config *config, RssiReceiver *receiver, Buzzer *buzzer, Led *l)
 {
     conf = config;
-    rx = rx5808;
+    rx = receiver;
     buz = buzzer;
     led = l;
 
