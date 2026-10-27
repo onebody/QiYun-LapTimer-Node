@@ -14,6 +14,7 @@ public:
     C5UartReceiver(int8_t rxPin, int8_t txPin);
     void init() override;
     uint8_t readRssi() override;
+    bool consumeFreshSample() override;
     void handleFrequencyChange(uint32_t currentTimeMs, uint16_t frequencyMhz) override;
 
 private:
@@ -32,6 +33,7 @@ private:
     uint32_t requestStartedMs_ = 0;
     bool requestPending_ = false;
     bool haveLevel_ = false;
+    bool freshSample_ = false;
     uint8_t level_ = 0;
     uint8_t response_[9] = {};
     uint8_t responseLength_ = 0;
