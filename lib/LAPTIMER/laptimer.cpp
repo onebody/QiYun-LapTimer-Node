@@ -69,6 +69,9 @@ void LapTimer::stop()
  */
 void LapTimer::handleLapTimerUpdate(uint32_t currentTimeMs)
 {
+    // Process a UART-backed level once per complete, checksum-valid C5 sample.
+    if (!rx->consumeFreshSample()) return;
+
     // 始终读取RSSI值，通过卡尔曼滤波器进行滤波处理以减少噪声
     rssi[rssiCount] = round(filter.filter(rx->readRssi(), 0));
     // DEBUG("RSSI: %u\n", rssi[rssiCount]);
