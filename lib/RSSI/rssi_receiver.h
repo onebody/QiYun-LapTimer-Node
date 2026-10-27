@@ -11,5 +11,7 @@ public:
     virtual ~RssiReceiver() {}
     virtual void init() = 0;
     virtual uint8_t readRssi() = 0;
+    // Serial adapters gate the timer on a new protocol sample, not cached data.
+    virtual bool consumeFreshSample() { return true; }
     virtual void handleFrequencyChange(uint32_t currentTimeMs, uint16_t frequencyMhz) = 0;
 };
