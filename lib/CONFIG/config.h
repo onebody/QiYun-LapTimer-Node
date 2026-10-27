@@ -5,6 +5,8 @@
 /*
 ## 接线表（与本文件下方 #define 保持一致，改动请同时更新两处）##
 
+C5-UART 适配构建（QIYUN_C5_UART_RSSI）：S3 主机 RX=GPIO17/TX=GPIO18；C3 主机 RX=GPIO6/TX=GPIO7。
+
 RX5808 的 +5V 引脚故意接 ESP32 的 3V3（欠压供电，提高 RSSI 分辨率）。
 RSSI 必须落在 ADC1 上；LED 为各芯片板载 LED。
 
@@ -23,6 +25,19 @@ RSSI 必须落在 ADC1 上；LED 为各芯片板载 LED。
 注：ESP32-S2 有引脚表但 platformio.ini 中无对应构建环境，需自行添加 [env:...]。
 完整文档见 docs/ 目录。
 */
+
+// Optional digital RSSI link to an ESP32-C5 running Widscan58's RotorHazard UART node.
+#if defined(QIYUN_C5_UART_RSSI)
+  #if defined(ESP32C3)
+    #define PIN_C5_UART_RX 6
+    #define PIN_C5_UART_TX 7
+  #elif defined(ESP32S3)
+    #define PIN_C5_UART_RX 17
+    #define PIN_C5_UART_TX 18
+  #else
+    #error "QIYUN_C5_UART_RSSI is currently supported on ESP32-S3 and ESP32-C3 hosts only"
+  #endif
+#endif
 
 //ESP32-C3
 #if defined(ESP32C3)
