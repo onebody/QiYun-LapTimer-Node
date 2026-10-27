@@ -103,6 +103,9 @@ void C5UartReceiver::consumeSerial(uint32_t nowMs) {
         responseLength_ = 0;
         haveLevel_ = false;
         level_ = 0;
+        // A timeout usually means the C5 rebooted or the link was disconnected.
+        // Re-send the selected frequency when the peer starts responding again.
+        requestedFrequency_ = 0;
     }
 }
 
