@@ -1,4 +1,5 @@
 #include "debug.h"
+#include "config.h"
 #include "led.h"
 #include "webserver.h"
 #include <ElegantOTA.h>
