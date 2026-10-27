@@ -18,8 +18,15 @@ void C5UartReceiver::init() {
     lastFrequencySetMs_ = millis();
     requestPending_ = false;
     haveLevel_ = false;
+    freshSample_ = false;
     level_ = 0;
     responseLength_ = 0;
+}
+
+bool C5UartReceiver::consumeFreshSample() {
+    const bool fresh = freshSample_;
+    freshSample_ = false;
+    return fresh;
 }
 
 uint8_t C5UartReceiver::readRssi() {
@@ -43,6 +50,7 @@ void C5UartReceiver::sendFrequency(uint16_t frequencyMhz, uint32_t nowMs) {
     requestedFrequency_ = frequencyMhz;
     lastFrequencySetMs_ = nowMs;
     haveLevel_ = false;
+    freshSample_ = false;
     level_ = 0;
     requestPending_ = false;
     responseLength_ = 0;
@@ -70,6 +78,7 @@ void C5UartReceiver::consumeSerial(uint32_t nowMs) {
         }
         if (responseLength_ == sizeof(response_)) {
             if (checksum(response_, sizeof(response_) - 1) == response_[sizeof(response_) - 1]) {
+                freshSample_ = true;
                 const uint8_t rawLevel = response_[3];
                 // 0 and 255 are reserved as invalid by RotorHazard; 1 means
                 // no valid filtered sample yet. Preserve real values 2..254.
