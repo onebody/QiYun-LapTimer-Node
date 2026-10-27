@@ -29,7 +29,7 @@ private:
     int8_t txPin_;
     uint16_t requestedFrequency_ = 0;
     uint32_t lastPollMs_ = 0;
-    uint32_t lastFrequencySetMs_ = 0;
+    volatile uint32_t lastFrequencySetMs_ = 0;
     uint32_t requestStartedMs_ = 0;
     bool requestPending_ = false;
     volatile bool haveLevel_ = false;
