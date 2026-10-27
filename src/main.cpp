@@ -32,20 +32,17 @@ static void parallelTask(void *pvArgs) {
         monitor.checkBatteryState(currentTimeMs, config.getAlarmThreshold());
         buzzer.handleBuzzer(currentTimeMs);
         led.handleLed(currentTimeMs);
-        // Keep the task schedulable even if the web server is idle.
-        vTaskDelay(1);
     }
 }
 
 static void initParallelTask() {
-    // Disable the watchdog for compatibility with the original busy-loop task.
-    // The task now yields once per millisecond rather than starving the system.
+    // Disable the watchdog for compatibility with the original polling task.
     #if defined(ESP32)
         disableCore0WDT();
     #elif defined(ESP32C3) || defined(ESP32S3)
         esp_task_wdt_delete(NULL);
     #endif
-    xTaskCreatePinnedToCore(parallelTask, "parallelTask", 4096, NULL, 1, &xTimerTask, 0);
+    xTaskCreatePinnedToCore(parallelTask, "parallelTask", 3000, NULL, 0, &xTimerTask, 0);
 }
 
 void setup() {
