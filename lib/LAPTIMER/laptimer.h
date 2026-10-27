@@ -1,4 +1,4 @@
-#include "RX5808.h"
+#include "../RSSI/rssi_receiver.h"
 #include "buzzer.h"
 #include "config.h"
 #include "kalman.h"
@@ -15,7 +15,7 @@ typedef enum {
 
 class LapTimer {
    public:
-    void init(Config *config, RX5808 *rx5808, Buzzer *buzzer, Led *l);
+    void init(Config *config, RssiReceiver *receiver, Buzzer *buzzer, Led *l);
     void start();
     void stop();
     void handleLapTimerUpdate(uint32_t currentTimeMs);
@@ -32,17 +32,15 @@ class LapTimer {
     uint16_t getCalibrationNoiseSamples();
     uint16_t getCalibrationCrossingSamples();
 
-    // 新增：设置lap事件回调函数
+    // Lap/stop callbacks are used by the Web API.
     void setLapEventHandler(void (*handler)(uint32_t lapTime));
-    // 新增：设置stop事件回调函数
     void setStopEventHandler(void (*handler)(void));
-    // 新增：获取圈速数据
     uint32_t* getLapTimes();
     uint8_t getLapCount();
 
    private:
     laptimer_state_e state = STOPPED;
-    RX5808 *rx;
+    RssiReceiver *rx;
     Config *conf;
     Buzzer *buz;
     Led *led;
@@ -55,10 +53,8 @@ class LapTimer {
 
     uint8_t rssiPeak;
     uint32_t rssiPeakTimeMs;
-
     bool lapAvailable = false;
 
-    // Calibration
     bool isCalibratingNoise = false;
     bool isCalibratingCrossing = false;
     uint8_t calibrationMaxNoise = 0;
@@ -66,15 +62,12 @@ class LapTimer {
     uint16_t calibrationNoiseSamples = 0;
     uint16_t calibrationCrossingSamples = 0;
 
-    // 新增：lap事件回调函数指针
     void (*lapEventHandler)(uint32_t lapTime);
-    // 新增：stop事件回调函数指针
     void (*stopEventHandler)(void);
 
     void lapPeakCapture(uint32_t currentTimeMs);
     bool lapPeakCaptured();
     void lapPeakReset();
-
     void startLap();
     void finishLap();
 };
