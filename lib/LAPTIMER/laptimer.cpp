@@ -5,10 +5,10 @@
 const uint16_t rssi_filter_q = 2000; //  0.01 - 655.36
 const uint16_t rssi_filter_r = 40;   // 0.0001 - 65.536
 
-void LapTimer::init(Config *config, RX5808 *rx5808, Buzzer *buzzer, Led *l)
+void LapTimer::init(Config *config, RssiReceiver *receiver, Buzzer *buzzer, Led *l)
 {
     conf = config;
-    rx = rx5808;
+    rx = receiver;
     buz = buzzer;
     led = l;
 
@@ -69,6 +69,9 @@ void LapTimer::stop()
  */
 void LapTimer::handleLapTimerUpdate(uint32_t currentTimeMs)
 {
+    // Process a UART-backed level once per complete, checksum-valid C5 sample.
+    if (!rx->consumeFreshSample()) return;
+
     // 始终读取RSSI值，通过卡尔曼滤波器进行滤波处理以减少噪声
     rssi[rssiCount] = round(filter.filter(rx->readRssi(), 0));
     // DEBUG("RSSI: %u\n", rssi[rssiCount]);

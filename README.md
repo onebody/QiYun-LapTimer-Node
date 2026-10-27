@@ -64,7 +64,7 @@
 | 项 | 值 |
 |---|---|
 | 默认热点 / 密码 / 地址 | `QYLPT_XXXX`（`XXXX` = MAC 去冒号后的末 4 位十六进制）/ `12345678` / `http://33.0.0.1`、`http://qylpt.local` |
-| 构建环境 | `esp32dev`、`esp32doit-devkit-v1`、`esp32-c3-devkitm-1`、`esp32-s3-devkitc-1`（[platformio.ini](platformio.ini)） |
+| 构建环境 | 原 RX5808：`esp32dev`、`esp32doit-devkit-v1`、`esp32-c3-devkitm-1`、`esp32-s3-devkitc-1`；C5 UART 数字 RSSI 新增：`esp32-s3-zero-c5uart`、`esp32-s3-devkitc-1-c5uart`、`esp32-c3-devkitm-1-c5uart`（[platformio.ini](platformio.ini)，详见 [C5 UART 适配文档](docs/c5-uart-rssi.md)） |
 | 烧录 | `pio run -e esp32dev -t upload --upload-port <端口>` → `pio run -e esp32dev -t uploadfs --upload-port <端口>` |
 | 预编译镜像 | [Releases](https://github.com/onebody/QiYun-LapTimer-Node/releases/latest) 每次给**两个独立 bin**：固件 app → `0x10000`、网页 LittleFS → `0x290000`。不含 `bootloader.bin` / `partitions.bin`，**刷不亮空白模块**，只用于已能开机的设备升级，见 [02 §3.4](docs/02-user-manual.md#34-用-release-预编译镜像升级免装-platformio) |
 | 网页文件 | `data/` 整个目录 = LittleFS 镜像，改完只需重跑 `-t uploadfs` |
