@@ -3,7 +3,14 @@
 #include "webserver.h"
 #include <ElegantOTA.h>
 
+#if defined(QIYUN_C5_UART_RSSI)
+#include "c5_uart_receiver.h"
+static C5UartReceiver rx(PIN_C5_UART_RX, PIN_C5_UART_TX);
+#else
+#include "RX5808.h"
 static RX5808 rx(PIN_RX5808_RSSI, PIN_RX5808_DATA, PIN_RX5808_SELECT, PIN_RX5808_CLOCK);
+#endif
+
 static Config config;
 static Webserver ws;
 static Buzzer buzzer;
@@ -24,19 +31,20 @@ static void parallelTask(void *pvArgs) {
         monitor.checkBatteryState(currentTimeMs, config.getAlarmThreshold());
         buzzer.handleBuzzer(currentTimeMs);
         led.handleLed(currentTimeMs);
+        // Keep the task schedulable even if the web server is idle.
+        vTaskDelay(1);
     }
 }
 
 static void initParallelTask() {
-    // 禁用看门狗，兼容不同的ESP32变体
+    // Disable the watchdog for compatibility with the original busy-loop task.
+    // The task now yields once per millisecond rather than starving the system.
     #if defined(ESP32)
-        // 对于ESP32-WROOM/WROVER
         disableCore0WDT();
     #elif defined(ESP32C3) || defined(ESP32S3)
-        // 对于ESP32-C3和ESP32-S3
         esp_task_wdt_delete(NULL);
     #endif
-    xTaskCreatePinnedToCore(parallelTask, "parallelTask", 3000, NULL, 0, &xTimerTask, 0);
+    xTaskCreatePinnedToCore(parallelTask, "parallelTask", 4096, NULL, 1, &xTimerTask, 0);
 }
 
 void setup() {
@@ -44,9 +52,7 @@ void setup() {
     config.init();
     rx.init();
     buzzer.init(PIN_BUZZER, BUZZER_INVERTED);
-    // 根据不同芯片型号设置板载LED的极性
     #if defined(ESP32C3) || defined(ESP32S2) || defined(ESP32S3) || defined(ESP32)
-        // ESP32系列板载LED通常是低电平点亮（inverted=true）
         led.init(PIN_LED, true);
     #else
         led.init(PIN_LED, false);
